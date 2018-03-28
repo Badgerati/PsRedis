@@ -9,6 +9,16 @@ function Add-RedisDll
     Add-Type -Path '.\packages\StackExchange.Redis.1.2.6\lib\net45\StackExchange.Redis.dll' -ErrorAction Stop | Out-Null
 }
 
+function Test-RedisIsConnected
+{
+    param (
+        [Parameter()]
+        $Connection
+    )
+
+    return ($Connection -ne $null -and $Connection.IsConnected)
+}
+
 function Get-RedisConnection
 {
     param (
@@ -18,7 +28,7 @@ function Get-RedisConnection
         $Connection
     )
 
-    if ($Global:RedisCacheConnection -eq $null -or !$Global:RedisCacheConnection.IsConnected)
+    if (!(Test-RedisIsConnected $Global:RedisCacheConnection))
     {
         Write-Host "==> Creating Redis Connection"
 
@@ -33,7 +43,7 @@ function Get-RedisConnection
     $server = $Global:RedisCacheConnection.GetEndPoints()[0]
     Write-Host "==> Server: $($server -ireplace 'Unspecified/', '')"
 
-    if ($Global:RedisServerConnection -eq $null)
+    if (!(Test-RedisIsConnected $Global:RedisServerConnection))
     {
         $Global:RedisServerConnection = $Global:RedisCacheConnection.GetServer($server)
         if (!$?)
@@ -48,7 +58,7 @@ function Get-RedisConnection
 
 function Get-RedisDatabase
 {
-    if ($Global:RedisCacheConnection -eq $null)
+    if (!(Test-RedisIsConnected $Global:RedisCacheConnection))
     {
         throw "No Redis connection has been established"
     }
@@ -58,7 +68,17 @@ function Get-RedisDatabase
 
 function Remove-RedisConnection
 {
-    if ($Global:RedisCacheConnection -ne $null)
+    param (
+        [switch]
+        $Close
+    )
+
+    if ($Close)
+    {
+        return
+    }
+
+    if (Test-RedisIsConnected $Global:RedisCacheConnection)
     {
         $Global:RedisCacheConnection.Dispose()
         if (!$?)
@@ -70,7 +90,7 @@ function Remove-RedisConnection
 
 function Get-RedisInfoKeys
 {
-    if ($Global:RedisServerConnection -eq $null)
+    if (!(Test-RedisIsConnected $Global:RedisServerConnection))
     {
         throw "No Redis server connection has been established"
     }
@@ -84,6 +104,69 @@ function Get-RedisInfoKeys
 
     Write-Host "==> Keys: $($k)"
     return $k
+}
+
+function Get-RedisInfo
+{
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Connection,
+
+        [switch]
+        $Close
+    )
+
+    Add-RedisDll
+
+    $conn = Get-RedisConnection -Connection $Connection
+    Remove-RedisConnection -Close:$Close
+
+    return $conn.Info()
+}
+
+function Set-RedisKey
+{
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Connection,
+
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Key,
+
+        [Parameter()]
+        [string]
+        $Value,
+
+        [Parameter()]
+        [timespan]
+        $TimeOut,
+
+        [switch]
+        $Close
+    )
+
+    Add-RedisDll
+
+    Get-RedisConnection -Connection $Connection | Out-Null
+    $db = Get-RedisDatabase
+
+    Write-Host "`n==> Setting Key: $($Key) - $($Value) [ttl: $($TimeOut)]"
+    $start = [DateTime]::UtcNow
+
+    $db.StringSet($Key, $Value, $TimeOut) | Out-Null
+
+    Write-Host "`n==> Key inserted"
+
+    $end = [DateTime]::UtcNow.Subtract($start)
+    Write-Host "`n==> Duration: $($end.ToString())"
+
+    Remove-RedisConnection -Close:$Close
 }
 
 function Remove-RedisKeys
@@ -106,7 +189,10 @@ function Remove-RedisKeys
         $SleepSeconds = 10,
 
         [int]
-        $MaxDelete = 0
+        $MaxDelete = 0,
+
+        [switch]
+        $Close
     )
 
     Add-RedisDll
@@ -129,6 +215,11 @@ function Remove-RedisKeys
         }
 
         $db.KeyDelete($k) | Out-Null
+        if (!$?)
+        {
+            throw "Failed to delete key: $($k)"
+        }
+
         $count++
 
         if ($MaxDelete -gt 0 -and $count -ge $MaxDelete)
@@ -144,7 +235,7 @@ function Remove-RedisKeys
     $end = [DateTime]::UtcNow.Subtract($start)
     Write-Host "`n==> Duration: $($end.ToString())"
 
-    Remove-RedisConnection
+    Remove-RedisConnection -Close:$Close
 }
 
 function Get-RedisKeysCount
@@ -158,7 +249,10 @@ function Get-RedisKeysCount
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string]
-        $Pattern
+        $Pattern,
+
+        [switch]
+        $Close
     )
 
     Add-RedisDll
@@ -180,5 +274,68 @@ function Get-RedisKeysCount
     $end = [DateTime]::UtcNow.Subtract($start)
     Write-Host "`n==> Duration: $($end.ToString())"
 
-    Remove-RedisConnection
+    Remove-RedisConnection -Close:$Close
+
+    return $count
+}
+
+function Get-RedisKeys
+{
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Connection,
+
+        [switch]
+        $Close
+    )
+
+    Add-RedisDll
+
+    $conn = Get-RedisConnection -Connection $Connection
+
+    Write-Host "`n==> Retrieving all Keys"
+
+    $keys = @()
+    $start = [DateTime]::UtcNow
+
+    foreach ($k in $conn.Keys($Global:DatabaseIndex, '*'))
+    {
+        $keys += $k
+    }
+
+    $end = [DateTime]::UtcNow.Subtract($start)
+    Write-Host "`n==> Duration: $($end.ToString())"
+
+    Remove-RedisConnection -Close:$Close
+
+    return $keys
+}
+
+function Get-RedisKey
+{
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Connection,
+
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Key,
+
+        [switch]
+        $Close
+    )
+
+    Add-RedisDll
+
+    Get-RedisConnection -Connection $Connection | Out-Null
+    $db = Get-RedisDatabase
+    $value = $db.StringGet($Key)
+    Remove-RedisConnection -Close:$Close
+
+    return $value
 }
