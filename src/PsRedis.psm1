@@ -90,19 +90,35 @@ function Remove-RedisConnection
 
 function Get-RedisInfoKeys
 {
-    if (!(Test-RedisIsConnected $Global:RedisServerConnection))
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Connection,
+
+        [switch]
+        $Close
+    )
+
+    Add-RedisDll
+
+    $conn = Get-RedisConnection -Connection $Connection
+
+    if (!(Test-RedisIsConnected $conn))
     {
         throw "No Redis server connection has been established"
     }
 
     $k = 0
 
-    if (($Global:RedisServerConnection.Info() | Select-Object -Last 1)[0].Value -imatch 'keys=(\d+)')
+    if (($conn.Info() | Select-Object -Last 1)[0].Value -imatch 'keys=(\d+)')
     {
         $k = $Matches[1]
     }
 
     Write-Host "==> Keys: $($k)"
+    Remove-RedisConnection -Close:$Close
+
     return $k
 }
 
