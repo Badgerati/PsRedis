@@ -73,7 +73,7 @@ function Remove-RedisConnection
         $Close
     )
 
-    if ($Close)
+    if (!$Close)
     {
         return
     }
@@ -85,6 +85,8 @@ function Remove-RedisConnection
         {
             throw "Failed to dispose Redis connection"
         }
+
+        $Global:RedisCacheConnection = $null
     }
 }
 
@@ -354,4 +356,70 @@ function Get-RedisKey
     Remove-RedisConnection -Close:$Close
 
     return $value
+}
+
+function Invoke-RedisTiming
+{
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Connection,
+
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Key,
+
+        [Parameter()]
+        [int]
+        $Seconds = 120,
+
+        [switch]
+        $Close
+    )
+
+    Add-RedisDll
+
+    if ($Seconds -le 0)
+    {
+        $Seconds = 1
+    }
+
+    Get-RedisConnection -Connection $Connection | Out-Null
+    $db = Get-RedisDatabase
+
+    Write-Host "`n==> Getting average timing from Redis over $($Seconds)s"
+
+    $count = 0
+    $times = @()
+
+    # run for ~2mins, and get duration for each call
+    while ($count -lt $Seconds)
+    {
+        $count++
+        $start = [DateTime]::UtcNow
+
+        $db.StringIncrement($Key, 1) | Out-Null
+
+        $duration = [DateTime]::UtcNow.Subtract($start).TotalMilliseconds
+        $times += $duration
+
+        if ($duration -lt 1000)
+        {
+            Start-Sleep -Milliseconds (1000 - $duration)
+        }
+    }
+
+    # remove the key
+    $db.KeyDelete($Key) | Out-Null
+
+    # loop through the duration, getting the average/min and max times
+    $results = ($times | Measure-Object -Average -Minimum -Maximum)
+    Write-Host "==> Average $($results.Average)"
+    Write-Host "==> Minimum $($results.Minimum)"
+    Write-Host "==> Maximum $($results.Maximum)"
+
+    # close the redis connection
+    Remove-RedisConnection -Close:$Close
 }
