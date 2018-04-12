@@ -358,7 +358,7 @@ function Get-RedisKey
     return $value
 }
 
-function Invoke-RedisTiming
+function Test-RedisTimings
 {
     param (
         [Parameter(Mandatory=$true)]
@@ -376,6 +376,12 @@ function Invoke-RedisTiming
         $Seconds = 120,
 
         [switch]
+        $NoSleep,
+
+        [switch]
+        $Reconnect,
+
+        [switch]
         $Close
     )
 
@@ -386,32 +392,51 @@ function Invoke-RedisTiming
         $Seconds = 1
     }
 
-    Get-RedisConnection -Connection $Connection | Out-Null
-    $db = Get-RedisDatabase
+    if (!$Reconnect)
+    {
+        Get-RedisConnection -Connection $Connection | Out-Null
+        $db = Get-RedisDatabase
+    }
 
     Write-Host "`n==> Getting average timing from Redis over $($Seconds)s"
 
-    $count = 0
+    $startTime = [DateTime]::UtcNow
     $times = @()
 
-    # run for ~2mins, and get duration for each call
-    while ($count -lt $Seconds)
+    # run and get duration for each call
+    while ([DateTime]::UtcNow.Subtract($startTime).TotalSeconds -le $Seconds)
     {
-        $count++
-        $start = [DateTime]::UtcNow
+        $_start = [DateTime]::UtcNow
+
+        if ($Reconnect)
+        {
+            Get-RedisConnection -Connection $Connection | Out-Null
+            $db = Get-RedisDatabase
+        }
 
         $db.StringIncrement($Key, 1) | Out-Null
 
-        $duration = [DateTime]::UtcNow.Subtract($start).TotalMilliseconds
+        if ($Reconnect)
+        {
+            Remove-RedisConnection -Close
+        }
+
+        $duration = [DateTime]::UtcNow.Subtract($_start).TotalMilliseconds
         $times += $duration
 
-        if ($duration -lt 1000)
+        if (!$NoSleep -and $duration -lt 1000)
         {
             Start-Sleep -Milliseconds (1000 - $duration)
         }
     }
 
     # remove the key
+    if ($Reconnect)
+    {
+        Get-RedisConnection -Connection $Connection | Out-Null
+        $db = Get-RedisDatabase
+    }
+
     $db.KeyDelete($Key) | Out-Null
 
     # loop through the duration, getting the average/min and max times
