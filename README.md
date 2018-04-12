@@ -35,7 +35,7 @@ Get-RedisInfo -Connection '<host>:<port>' -Close
 
 ### Test to get Average Response Time
 
-This example will should you how to run a test against Redis to get the average response times from Redis. YOu need to supply a dummy Key value, that will be used as a counter to increment - it's removed after the test.
+This example will should you how to run a test against Redis to get the average response times from Redis. You need to supply a dummy Key value, that will be used as a counter to increment - it's removed after the test.
 
 ```powershell
 # get average response over 120s after incrementing counter once a second
@@ -56,7 +56,7 @@ Get-RedisKey -Connection '<host>:<port>' -Key '<some-key>' -Close
 
 ### Remove all Keys that match a Pattern
 
-This example will let you remove all keys from Redis that match a particular pattern - if the Redis version is 2.8.0 or greater, then a SCAN is used, else KEYS is used.
+This example will let you remove all keys from Redis that match a particular pattern - if the Redis version is 2.8.0 or greater then a SCAN is used, else KEYS is used.
 
 ```powershell
 # remove all "user" keys
