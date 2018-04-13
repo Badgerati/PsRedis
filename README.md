@@ -23,7 +23,7 @@ Before running any of the examples, ensure you have imported the PsRedis module 
 Import-Module .\PsRedis.psm1
 ```
 
-> Each of the functions have a `-Close` switch, when supplied PsRedis will close the connection after running the function, else it will leave it open
+> Each of the functions have a `-Connection` and `-Close` parameter, `-Connection` is the connection string and if not supplied will attempt to use an existing connection. When supplied `-Close` will close the connection after running the function, else it will leave it open
 
 ### Return INFO about an Instance
 
@@ -72,10 +72,13 @@ Remove-RedisKeys -Connection '<host>:<port>' -Pattern 'user:*' -MaxDelete 15000 
 ## Other Functions
 
 * Get-RedisInfo
+* Get-RedisUptime
 * Get-RedisInfoKeys
 * Get-RedisKey
 * Set-RedisKey
 * Get-RedisKeys
+* Remove-RedisKey
+* Set-RedisIncrementKey
 * Get-RedisKeysCount
 * Remove-RedisKeys
 * Test-RedisTimings
