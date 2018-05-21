@@ -283,10 +283,9 @@ function Get-RedisKeysCount
         [string]
         $Connection,
 
-        [Parameter(Mandatory=$true)]
-        [ValidateNotNullOrEmpty()]
+        [Parameter()]
         [string]
-        $Pattern,
+        $Pattern = '*',
 
         [switch]
         $Close
@@ -296,14 +295,18 @@ function Get-RedisKeysCount
 
     $conn = Get-RedisConnection -Connection $Connection
 
+    if ([string]::IsNullOrWhiteSpace($Pattern)) {
+        $Pattern = '*'
+    }
+
     Write-Host "`n==> Counting Keys: $($Pattern)"
 
-    $count = 0
+    $keys = @{}
     $start = [DateTime]::UtcNow
 
     foreach ($k in $conn.Keys($Global:DatabaseIndex, $Pattern))
     {
-        $count++
+        $keys[($k -isplit ':')[0]]++
     }
 
     $end = [DateTime]::UtcNow.Subtract($start)
@@ -311,7 +314,7 @@ function Get-RedisKeysCount
 
     Remove-RedisConnection -Close:$Close
 
-    return $count
+    return $keys
 }
 
 function Get-RedisKeys
