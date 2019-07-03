@@ -15,22 +15,30 @@ choco install nuget.commandline -y
 cd .\src\
 ```
 
-## Examples
+## Usage
 
-Before running any of the examples, ensure you have imported the PsRedis module from the `src` directory:
+Before running any of the examples, ensure you have imported the PsRedis module:
 
 ```powershell
-Import-Module .\PsRedis.psm1
+Import-Module .\src\PsRedis.psm1
 ```
 
-> Each of the functions have a `-Connection` and `-Close` parameter, `-Connection` is the connection string and if not supplied will attempt to use an existing connection. When supplied `-Close` will close the connection after running the function, else it will leave it open
+You scripts must first open a connection, and then close it:
+
+```powershell
+Initialize-RedisConnection -ConnectionString $ConnectionString
+
+# logic
+
+Close-RedisConnection
+```
 
 ### Return INFO about an Instance
 
 This example will return the information you get from running the `INFO` command against the Redis instance:
 
 ```powershell
-Get-RedisInfo -Connection '<host>:<port>' -Close
+Get-RedisInfo
 ```
 
 ### Test to get Average Response Time
@@ -39,19 +47,16 @@ This example will should you how to run a test against Redis to get the average 
 
 ```powershell
 # get average response over 120s after incrementing counter once a second
-Test-RedisTimings -Connection '<host>:<port>' -Key 'counter' -Seconds 120 -Close
+Test-RedisTimings -Key 'counter' -Seconds 120
 
 # get average response over 120s after rapidly incrementing counter
-Test-RedisTimings -Connection '<host>:<port>' -Key 'counter' -Seconds 120 -NoSleep -Close
-
-# get average response over 120s after incrementing counter once a second, recreating the connection every attempt
-Test-RedisTimings -Connection '<host>:<port>' -Key 'counter' -Seconds 120 -Reconnect -Close
+Test-RedisTimings -Key 'counter' -Seconds 120 -NoSleep
 ```
 
 ### Get the value of a Key
 
 ```powershell
-Get-RedisKey -Connection '<host>:<port>' -Key '<some-key>' -Close
+Get-RedisKey -Key '<some-key>'
 ```
 
 ### Remove all Keys that match a Pattern
@@ -60,25 +65,35 @@ This example will let you remove all keys from Redis that match a particular pat
 
 ```powershell
 # remove all "user" keys
-Remove-RedisKeys -Connection '<host>:<port>' -Pattern 'user:*' -Close
+Remove-RedisKeys -Pattern 'user:*'
 
 # remove all "user" keys, but sleep for 5s between every 1000 removed
-Remove-RedisKeys -Connection '<host>:<port>' -Pattern 'user:*' -SleepThreshold 1000 -SleepSeconds 5 -Close
+Remove-RedisKeys -Pattern 'user:*' -SleepThreshold 1000 -SleepSeconds 5
 
 # remove all "user" keys, up to a max of 15000 keys then stop
-Remove-RedisKeys -Connection '<host>:<port>' -Pattern 'user:*' -MaxDelete 15000 -Close
+Remove-RedisKeys -Pattern 'user:*' -MaxDelete 15000
 ```
 
-## Other Functions
+## Functions
 
+* Close-RedisConnection
+* Get-RedisConnection
+* Get-RedisDatabase
 * Get-RedisInfo
-* Get-RedisUptime
 * Get-RedisInfoKeys
 * Get-RedisKey
-* Set-RedisKey
 * Get-RedisKeys
-* Remove-RedisKey
-* Set-RedisIncrementKey
 * Get-RedisKeysCount
+* Get-RedisKeyTTL
+* Get-RedisKeyType
+* Get-RedisKeyValueLength
+* Get-RedisRandomKey
+* Get-RedisUptime
+* Initialize-RedisConnection
+* Remove-RedisKey
 * Remove-RedisKeys
+* Set-RedisIncrementKey
+* Set-RedisKey
+* Set-RedisKeyTTL
+* Test-RedisIsConnected
 * Test-RedisTimings
