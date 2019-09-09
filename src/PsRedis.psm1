@@ -238,8 +238,11 @@ function Get-RedisKeyValueLength
     $value = Get-RedisKey -Key $Key
 
     $length = $value.Length
+    
     if ($value -is 'array') {
-        $length = ($value | ForEach-Object { $_.Length } | Measure-Object -Sum).Sum
+        $length = 0
+        
+        ($value | ForEach-Object { $length += $_.Length })
     }
 
     return $length
