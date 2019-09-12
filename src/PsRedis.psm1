@@ -218,7 +218,36 @@ function Get-RedisKeysCount
     return $keys
 }
 
-function Get-RedisKeyObject {
+function Get-RedisKeyDetails
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Key,
+
+        [Parameter()]
+        [string]
+        $Type
+    )
+
+    if ([string]::IsNullOrWhitespace($Type)){
+        $Type = Get-RedisKeyType -Key $Key
+    }
+
+    return @{
+        Key = $Key
+        Type = $Type
+        Value = (Get-RedisKey -Key $Key -Type $Type)
+        TTL = (Get-RedisKeyTTL -Key $Key).TotalSeconds
+        Size = (Get-RedisKeyValueLength -Key $Key)
+    }
+}
+
+function Get-RedisKey
+{
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
@@ -236,53 +265,7 @@ function Get-RedisKeyObject {
         $Type = Get-RedisKeyType -Key $Key
     }
 
-    switch ($type.ToLowerInvariant()) {
-        'hash' {
-            $value = [string]($db.HashGetAll($Key)).Value
-        }
-
-        'set' {
-            $value = @([string]($db.SetMembers($Key)) -isplit '\s+')
-        }
-
-        default {
-            $value = ($db.StringGet($Key)).ToString()
-        }
-    }
-
-    $ttl = $db.KeyTimeToLive($Key).TotalSeconds
-
-    $length = $value.Length
-    
-    if ($value -is 'array') {
-        $length = 0
-        
-        ($value | ForEach-Object { $length += $_.Length })
-    }
-
-    return @{
-        "Key" = $Key
-        "Type" = $Type
-        "Value" = $value
-        "TTL" = $ttl
-        "DataLength" = $length
-    }
-}
-
-function Get-RedisKey
-{
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory=$true)]
-        [ValidateNotNullOrEmpty()]
-        [string]
-        $Key
-    )
-
-    $db = Get-RedisDatabase
-    $type = Get-RedisKeyType -Key $Key
-
-    switch ($type.ToLowerInvariant()) {
+    switch ($Type.ToLowerInvariant()) {
         'hash' {
             $value = [string]($db.HashGetAll($Key)).Value
         }
@@ -310,12 +293,10 @@ function Get-RedisKeyValueLength
     )
 
     $value = Get-RedisKey -Key $Key
-
     $length = $value.Length
-    
+
     if ($value -is 'array') {
         $length = 0
-        
         ($value | ForEach-Object { $length += $_.Length })
     }
 
