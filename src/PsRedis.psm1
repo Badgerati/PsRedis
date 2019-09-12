@@ -396,6 +396,25 @@ function Remove-RedisSetMembers
     $db.SetRemove($Key, $Members) | Out-Null
 }
 
+function Add-RedisSetMembers
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Key,
+
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string[]]
+        $Members
+    )
+
+    $db = Get-RedisDatabase
+    $db.SetAdd($Key, $Members) | Out-Null
+}
+
 function Set-RedisIncrementKey
 {
     [CmdletBinding()]
