@@ -12,6 +12,7 @@ function Add-RedisDll
 
 function Test-RedisIsConnected
 {
+    [CmdletBinding()]
     param (
         [Parameter()]
         $Connection
@@ -22,6 +23,7 @@ function Test-RedisIsConnected
 
 function Initialize-RedisConnection
 {
+    [CmdletBinding()]
     param (
         [Parameter()]
         [string]
@@ -63,6 +65,9 @@ function Initialize-RedisConnection
 
 function Close-RedisConnection
 {
+    [CmdletBinding()]
+    param()
+
     if (Test-RedisIsConnected $Global:RedisCacheConnection)
     {
         $Global:RedisCacheConnection.Dispose()
@@ -76,6 +81,9 @@ function Close-RedisConnection
 
 function Get-RedisDatabase
 {
+    [CmdletBinding()]
+    param()
+
     if (!(Test-RedisIsConnected $Global:RedisCacheConnection)) {
         throw "No Redis connection has been initialized"
     }
@@ -85,6 +93,9 @@ function Get-RedisDatabase
 
 function Get-RedisConnection
 {
+    [CmdletBinding()]
+    param()
+
     if ($null -eq $Global:RedisServerConnection) {
         throw "No Redis connection has been initialized"
     }
@@ -94,6 +105,9 @@ function Get-RedisConnection
 
 function Get-RedisInfoKeys
 {
+    [CmdletBinding()]
+    param()
+
     $conn = Get-RedisConnection
     $k = 0
 
@@ -106,6 +120,9 @@ function Get-RedisInfoKeys
 
 function Get-RedisInfo
 {
+    [CmdletBinding()]
+    param()
+
     $conn = Get-RedisConnection
     $info = $conn.Info()
 
@@ -114,6 +131,7 @@ function Get-RedisInfo
 
 function Get-RedisUptime
 {
+    [CmdletBinding()]
     param (
         [Parameter()]
         [ValidateSet('Seconds', 'Days')]
@@ -128,6 +146,7 @@ function Get-RedisUptime
 
 function Set-RedisKey
 {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
@@ -151,6 +170,7 @@ function Set-RedisKey
 
 function Remove-RedisKeys
 {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
@@ -176,6 +196,7 @@ function Remove-RedisKeys
 
 function Get-RedisKeysCount
 {
+    [CmdletBinding()]
     param (
         [Parameter()]
         [string]
@@ -199,6 +220,7 @@ function Get-RedisKeysCount
 
 function Get-RedisKey
 {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
@@ -228,6 +250,7 @@ function Get-RedisKey
 
 function Get-RedisKeyValueLength
 {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
@@ -247,6 +270,9 @@ function Get-RedisKeyValueLength
 
 function Get-RedisRandomKey
 {
+    [CmdletBinding()]
+    param()
+
     $db = Get-RedisDatabase
     $value = $db.KeyRandom()
 
@@ -255,6 +281,7 @@ function Get-RedisRandomKey
 
 function Get-RedisKeyType
 {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
@@ -269,6 +296,7 @@ function Get-RedisKeyType
 
 function Get-RedisKeyTTL
 {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
@@ -284,6 +312,7 @@ function Get-RedisKeyTTL
 
 function Set-RedisKeyTTL
 {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
@@ -302,6 +331,7 @@ function Set-RedisKeyTTL
 
 function Get-RedisKeys
 {
+    [CmdletBinding()]
     param (
         [Parameter()]
         [string]
@@ -335,6 +365,7 @@ function Get-RedisKeys
 
 function Remove-RedisKey
 {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
@@ -346,8 +377,28 @@ function Remove-RedisKey
     $db.KeyDelete($Key) | Out-Null
 }
 
+function Remove-RedisSetMembers
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Key,
+
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string[]]
+        $Members
+    )
+
+    $db = Get-RedisDatabase
+    $db.SetRemove($Key, $Members) | Out-Null
+}
+
 function Set-RedisIncrementKey
 {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
@@ -367,6 +418,7 @@ function Set-RedisIncrementKey
 
 function Test-RedisTimings
 {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
