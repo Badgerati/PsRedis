@@ -374,7 +374,11 @@ function Get-RedisKeys
 
         [Parameter()]
         [scriptblock]
-        $ScriptBlock
+        $ScriptBlock,
+
+        [Parameter()]
+        [int]
+        $KeyCount = 0
     )
 
     $conn = Get-RedisConnection
@@ -392,6 +396,10 @@ function Get-RedisKeys
 
         if ($result) {
             $keys += $k
+        }
+
+        if (($KeyCount -gt 0) -and ($keys.Length -ge $KeyCount)) {
+            break
         }
     }
 
