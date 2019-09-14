@@ -1,26 +1,3 @@
-
-
-$Global:RedisCacheConnection = $null
-$Global:RedisServerConnection = $null
-$Global:DatabaseIndex = 0
-$Global:PsRedisRoot = (Split-Path -Parent -Path $MyInvocation.MyCommand.Path)
-
-function Add-RedisDll
-{
-    Add-Type -Path (Join-Path $Global:PsRedisRoot 'packages\StackExchange.Redis.1.2.6\lib\net45\StackExchange.Redis.dll') -ErrorAction Stop | Out-Null
-}
-
-function Test-RedisIsConnected
-{
-    [CmdletBinding()]
-    param (
-        [Parameter()]
-        $Connection
-    )
-
-    return (($null -ne $Connection) -and ($Connection.IsConnected))
-}
-
 function Initialize-RedisConnection
 {
     [CmdletBinding()]
@@ -236,12 +213,14 @@ function Get-RedisKeyDetails
         $Type = Get-RedisKeyType -Key $Key
     }
 
+    $value = Get-RedisKey -Key $Key -Type $Type
+
     return @{
         Key = $Key
         Type = $Type
-        Value = (Get-RedisKey -Key $Key -Type $Type)
+        Value = $value
         TTL = (Get-RedisKeyTTL -Key $Key).TotalSeconds
-        Size = (Get-RedisKeyValueLength -Key $Key)
+        Size = (Get-RedisKeyValueLengthPrivate -Data $value)
     }
 }
 
@@ -292,15 +271,7 @@ function Get-RedisKeyValueLength
         $Key
     )
 
-    $value = Get-RedisKey -Key $Key
-    $length = $value.Length
-
-    if ($value -is 'array') {
-        $length = 0
-        ($value | ForEach-Object { $length += $_.Length })
-    }
-
-    return $length
+    return Get-RedisKeyValueLengthPrivate -Key $Key
 }
 
 function Get-RedisRandomKey
