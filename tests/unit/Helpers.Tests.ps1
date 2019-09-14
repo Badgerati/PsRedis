@@ -33,3 +33,17 @@ Describe 'Get-RedisKeyValueLengthPrivate' {
         }
     }
 }
+
+Describe 'Test-RedisIsConnected'{
+    It 'Connected'{
+        (Test-RedisIsConnected -Connection @{"IsConnected" = $true}) | Should Be $true
+    }
+
+    It 'Not Connected'{
+        (Test-RedisIsConnected -Connection @{"IsConnected" = $false}) | Should Be $false
+    }
+
+    It 'Null'{
+        Test-RedisIsConnected -Connection $null | Should Be $false
+    }
+}
