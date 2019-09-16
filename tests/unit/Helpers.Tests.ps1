@@ -55,3 +55,15 @@ Describe 'Get-RedisConnection'{
         {Get-RedisConnection} | Should Throw "No Redis connection has been initialized"
     }
 }
+
+Describe 'Get-RedisDatabase'{
+    It 'Error'{
+        $Global:RedisCacheConnection = $null
+
+        {Get-RedisDatabase} | Should Throw "No Redis connection has been initialized"
+
+        $Global:RedisCacheConnection = @{"IsConnected" = $false}
+
+        {Get-RedisDatabase} | Should Throw "No Redis connection has been initialized"
+    }
+}
