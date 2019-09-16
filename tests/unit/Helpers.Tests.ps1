@@ -47,3 +47,11 @@ Describe 'Test-RedisIsConnected'{
         Test-RedisIsConnected -Connection $null | Should Be $false
     }
 }
+
+Describe 'Get-RedisConnection'{
+    It 'Error'{
+        $Global:RedisServerConnection = $null
+
+        {Get-RedisConnection} | Should Throw "No Redis connection has been initialized"
+    }
+}
