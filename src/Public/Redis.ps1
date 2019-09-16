@@ -285,6 +285,49 @@ function Get-RedisRandomKey
     return $value
 }
 
+function Get-RedisRandomKeys
+{
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [string]
+        $Pattern = '*',
+
+        [Parameter()]
+        [scriptblock]
+        $ScriptBlock,
+
+        [Parameter(Mandatory=$true)]
+        [int]
+        $KeyCount = 0
+    )
+
+    $keys = @()
+
+    if ($KeyCount -le 1){
+        $KeyCount = 1
+    }
+
+    while ($keys.Length -lt $KeyCount){
+        $key = [string](Get-RedisRandomKey)
+
+        if (!([string]::IsNullOrWhiteSpace($Pattern)) -and !($key -imatch $Pattern)) {
+            continue
+        }
+
+        $result = $true
+        if ($null -ne $ScriptBlock) {
+            $result = (Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $key)
+        }
+
+        if ($result) {
+            $keys += $k
+        }
+    }
+
+    return $keys
+}
+
 function Get-RedisKeyType
 {
     [CmdletBinding()]
