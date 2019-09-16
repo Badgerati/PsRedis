@@ -36,3 +36,27 @@ function Get-RedisKeyValueLengthPrivate
 
     return $length
 }
+
+function Get-RedisDatabase
+{
+    [CmdletBinding()]
+    param()
+
+    if (!(Test-RedisIsConnected $Global:RedisCacheConnection)) {
+        throw "No Redis connection has been initialized"
+    }
+
+    return $Global:RedisCacheConnection.GetDatabase($Global:DatabaseIndex)
+}
+
+function Get-RedisConnection
+{
+    [CmdletBinding()]
+    param()
+
+    if ($null -eq $Global:RedisServerConnection) {
+        throw "No Redis connection has been initialized"
+    }
+
+    return $Global:RedisServerConnection
+}
