@@ -267,7 +267,7 @@ function Get-RedisRandomKeys
     param (
         [Parameter()]
         [string]
-        $Pattern = '*',
+        $Pattern = '',
 
         [Parameter()]
         [scriptblock]
@@ -275,7 +275,7 @@ function Get-RedisRandomKeys
 
         [Parameter(Mandatory=$true)]
         [int]
-        $KeyCount = 0
+        $KeyCount = 1
     )
 
     $keys = @()
@@ -299,6 +299,59 @@ function Get-RedisRandomKeys
         if ($result) {
             $keys += $k
         }
+
+        $i = ($keys.Length / $KeyCount) * 100
+        Write-Progress -Activity "Search in Progress" -Status "$i% Complete:" -PercentComplete $i
+    }
+
+    return $keys
+}
+
+function Get-RedisSemiRandomKeys
+{
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [string]
+        $Pattern = '*',
+
+        [Parameter()]
+        [scriptblock]
+        $ScriptBlock,
+
+        [Parameter(Mandatory=$true)]
+        [int]
+        $KeyCount = 1
+    )
+
+    $keys = @()
+    $progress = 0
+
+    $script:ScriptBlock2 = $ScriptBlock
+
+    if ($KeyCount -le 1) {
+        $KeyCount = 1
+    }
+
+    while ($keys.Length -lt $KeyCount) {
+        $keys += (Get-RedisKeys -Pattern $Pattern -KeyCount ($KeyCount - $keys.Length) -ScriptBlock {
+            param($key)
+            $allowed = ((Get-Random -Minimum 1 -Maximum 5) -eq 2)
+
+            if ($allowed) {
+                if ($null -ne $script:ScriptBlock2) {
+                    $allowed = (Invoke-Command -ScriptBlock $script:ScriptBlock2 -ArgumentList $key)
+                }
+
+                if ($allowed) {
+                    $script:progress++
+                    $i = ($script:progress / $KeyCount) * 100
+                    Write-Progress -Activity "Search in Progress" -Status "$i% Complete:" -PercentComplete $i
+                }
+            }
+
+            return $allowed
+        })
     }
 
     return $keys
