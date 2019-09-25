@@ -1,6 +1,6 @@
-$Global:RedisCacheConnection = $null
-$Global:RedisServerConnection = $null
-$Global:DatabaseIndex = 0
+$Global:PsRedisCacheConnection = $null
+$Global:PsRedisServerConnection = $null
+$Global:PsRedisDatabaseIndex = 0
 $Global:PsRedisRoot = (Split-Path -Parent -Path $MyInvocation.MyCommand.Path)
 
 function Add-RedisDll

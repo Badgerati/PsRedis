@@ -12,31 +12,31 @@ function Initialize-RedisConnection
 
     Add-RedisDll
 
-    if (!(Test-RedisIsConnected $Global:RedisCacheConnection))
+    if (!(Test-RedisIsConnected $Global:PsRedisCacheConnection))
     {
         if ([string]::IsNullOrWhiteSpace($ConnectionString)) {
             throw 'No connection string supplied when creating connection to Redis'
         }
 
-        $Global:RedisServerConnection = $null
-        $Global:RedisCacheConnection = [StackExchange.Redis.ConnectionMultiplexer]::Connect($ConnectionString, $null)
+        $Global:PsRedisServerConnection = $null
+        $Global:PsRedisCacheConnection = [StackExchange.Redis.ConnectionMultiplexer]::Connect($ConnectionString, $null)
         if (!$?) {
             throw 'Failed to create connection to Redis'
         }
     }
 
-    $server = $Global:RedisCacheConnection.GetEndPoints()[0]
+    $server = $Global:PsRedisCacheConnection.GetEndPoints()[0]
 
-    if (!(Test-RedisIsConnected $Global:RedisServerConnection))
+    if (!(Test-RedisIsConnected $Global:PsRedisServerConnection))
     {
-        $Global:RedisServerConnection = $Global:RedisCacheConnection.GetServer($server)
+        $Global:PsRedisServerConnection = $Global:PsRedisCacheConnection.GetServer($server)
         if (!$?) {
             throw "Failed to open connection to server"
         }
     }
 
     if ($ReturnConnection) {
-        return $Global:RedisServerConnection
+        return $Global:PsRedisServerConnection
     }
 }
 
@@ -45,14 +45,14 @@ function Close-RedisConnection
     [CmdletBinding()]
     param()
 
-    if (Test-RedisIsConnected $Global:RedisCacheConnection)
+    if (Test-RedisIsConnected $Global:PsRedisCacheConnection)
     {
-        $Global:RedisCacheConnection.Dispose()
+        $Global:PsRedisCacheConnection.Dispose()
         if (!$?) {
             throw "Failed to dispose Redis connection"
         }
 
-        $Global:RedisCacheConnection = $null
+        $Global:PsRedisCacheConnection = $null
     }
 }
 
@@ -134,7 +134,7 @@ function Remove-RedisKeys
     $conn = Get-RedisConnection
     $count = 0
 
-    foreach ($k in $conn.Keys($Global:DatabaseIndex, $Pattern))
+    foreach ($k in $conn.Keys($Global:PsRedisDatabaseIndex, $Pattern))
     {
         Remove-RedisKey -Key $k | Out-Null
         if (!$?) {
@@ -164,7 +164,7 @@ function Get-RedisKeysCount
 
     $keys = @{}
 
-    foreach ($k in $conn.Keys($Global:DatabaseIndex, $Pattern)) {
+    foreach ($k in $conn.Keys($Global:PsRedisDatabaseIndex, $Pattern)) {
         $keys[($k -isplit ':')[0]]++
     }
 
@@ -267,7 +267,7 @@ function Get-RedisRandomKeys
     param (
         [Parameter()]
         [string]
-        $Pattern = '*',
+        $Pattern = '',
 
         [Parameter()]
         [scriptblock]
@@ -275,7 +275,7 @@ function Get-RedisRandomKeys
 
         [Parameter(Mandatory=$true)]
         [int]
-        $KeyCount = 0
+        $KeyCount = 1
     )
 
     $keys = @()
@@ -299,6 +299,65 @@ function Get-RedisRandomKeys
         if ($result) {
             $keys += $k
         }
+
+        $i = ($keys.Length / $KeyCount) * 100
+        Write-Progress -Activity "Search in Progress" -Status "$i% Complete:" -PercentComplete $i
+    }
+
+    return $keys
+}
+
+function Get-RedisRandomKeysQuick
+{
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [string]
+        $Pattern = '*',
+
+        [Parameter()]
+        [scriptblock]
+        $ScriptBlock,
+
+        [Parameter(Mandatory=$true)]
+        [int]
+        $KeyCount = 1,
+
+        [Parameter()]
+        [int]
+        $KeyOffset = 0,
+
+        [Parameter()]
+        [int]
+        $PageSize = 10
+    )
+
+    $keys = @()
+    $progress = 0
+
+    if ($KeyCount -le 1) {
+        $KeyCount = 1
+    }
+
+    while ($keys.Length -lt $KeyCount) {
+        $keys += (Get-RedisKeys -Pattern $Pattern -KeyCount ($KeyCount - $keys.Length) -KeyOffset $KeyOffset -PageSize $PageSize -ScriptBlock {
+            param($key)
+            $allowed = ((Get-Random -Minimum 1 -Maximum 5) -eq 2)
+
+            if ($allowed) {
+                if ($null -ne $script:ScriptBlock) {
+                    $allowed = (Invoke-Command -ScriptBlock $script:ScriptBlock -ArgumentList $key)
+                }
+
+                if ($allowed) {
+                    $script:progress++
+                    $i = ($script:progress / $script:KeyCount) * 100
+                    Write-Progress -Activity "Search in Progress" -Status "$i% Complete:" -PercentComplete $i
+                }
+            }
+
+            return $allowed
+        })
     }
 
     return $keys
@@ -368,7 +427,15 @@ function Get-RedisKeys
 
         [Parameter()]
         [int]
-        $KeyCount = 0
+        $KeyCount = 0,
+
+        [Parameter()]
+        [int]
+        $KeyOffset = 0,
+
+        [Parameter()]
+        [int]
+        $PageSize = 10
     )
 
     $conn = Get-RedisConnection
@@ -378,7 +445,15 @@ function Get-RedisKeys
         $Pattern = '*'
     }
 
-    foreach ($k in $conn.Keys($Global:DatabaseIndex, $Pattern)) {
+    if ($KeyOffset -lt 0) {
+        $KeyOffset = 0
+    }
+
+    if ($PageSize -lt 0) {
+        $PageSize = 10
+    }
+
+    foreach ($k in $conn.Keys($Global:PsRedisDatabaseIndex, $Pattern, $PageSize, 0, $KeyOffset)) {
         $result = $true
         if ($null -ne $ScriptBlock) {
             $result = (Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $k)

@@ -42,11 +42,11 @@ function Get-RedisDatabase
     [CmdletBinding()]
     param()
 
-    if (!(Test-RedisIsConnected $Global:RedisCacheConnection)) {
+    if (!(Test-RedisIsConnected $Global:PsRedisCacheConnection)) {
         throw "No Redis connection has been initialized"
     }
 
-    return $Global:RedisCacheConnection.GetDatabase($Global:DatabaseIndex)
+    return $Global:PsRedisCacheConnection.GetDatabase($Global:PsRedisDatabaseIndex)
 }
 
 function Get-RedisConnection
@@ -54,9 +54,9 @@ function Get-RedisConnection
     [CmdletBinding()]
     param()
 
-    if ($null -eq $Global:RedisServerConnection) {
+    if ($null -eq $Global:PsRedisServerConnection) {
         throw "No Redis connection has been initialized"
     }
 
-    return $Global:RedisServerConnection
+    return $Global:PsRedisServerConnection
 }
