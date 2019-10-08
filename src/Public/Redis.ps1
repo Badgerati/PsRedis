@@ -329,6 +329,23 @@ function Get-RedisKeyDetails
     }
 }
 
+<#
+.SYNOPSIS
+Gets the value of a redis key with the supplied key
+
+.DESCRIPTION
+Gets the value of a redis key with the supplied key
+
+.Parameter Key
+The key name of the key that will be retrieve
+
+.Parameter Type
+(Optional) The key type, helps to reduce the amount of round trips if already known
+
+.EXAMPLE
+Get-RedisKey -Key 'Grapes' -Type 'Set'
+
+#>
 function Get-RedisKey
 {
     [CmdletBinding()]
