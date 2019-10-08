@@ -57,6 +57,17 @@ function Initialize-RedisConnection
     }
 }
 
+<#
+.SYNOPSIS
+Closes the connection with the redis server
+
+.DESCRIPTION
+Closes the connection with the redis server
+
+.EXAMPLE
+Close-RedisConnection
+
+#>
 function Close-RedisConnection
 {
     [CmdletBinding()]
