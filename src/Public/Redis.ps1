@@ -84,6 +84,17 @@ function Close-RedisConnection
     }
 }
 
+<#
+.SYNOPSIS
+Gets the keys section of the redis info command
+
+.DESCRIPTION
+Gets the keys section of the redis info command
+
+.EXAMPLE
+Get-RedisInfoKeys
+
+#>
 function Get-RedisInfoKeys
 {
     [CmdletBinding()]
