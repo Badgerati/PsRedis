@@ -245,6 +245,20 @@ function Remove-RedisKeys
     return $count
 }
 
+<#
+.SYNOPSIS
+Gets the count of all the keys with a supplied pattern
+
+.DESCRIPTION
+Gets the count of all the keys with a supplied pattern
+
+.Parameter Pattern
+The pattern to match the keys to be retrieved. Example '*' will retrieve all keys, 'Session*' will retrieve all keys that start with `Session`
+
+.EXAMPLE
+Get-RedisKeysCount -Pattern 'Cheese*'
+
+#>
 function Get-RedisKeysCount
 {
     [CmdletBinding()]
