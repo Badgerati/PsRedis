@@ -132,6 +132,20 @@ function Get-RedisInfo
     return $info
 }
 
+<#
+.SYNOPSIS
+Gets the uptime of the redis server
+
+.DESCRIPTION
+Gets the uptime of the redis server
+
+.Parameter Granularity
+Sets the granularity of the up time of the redis server. Can be either Seconds or Days
+
+.EXAMPLE
+Get-RedisUptime -Granularity 'Seconds'
+
+#>
 function Get-RedisUptime
 {
     [CmdletBinding()]
