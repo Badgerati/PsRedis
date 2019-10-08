@@ -436,6 +436,27 @@ function Get-RedisRandomKey
     return $value
 }
 
+<#
+.SYNOPSIS
+Gets random keys from the redis server  matching a supplied pattern
+
+.DESCRIPTION
+Gets random keys from the redis server  matching a supplied pattern
+
+.Parameter Pattern
+The pattern then the key name needs to match
+
+.Parameter ScriptBlock
+A script block that will be ran for each key that matches the pattern.
+Return a value of $false to make the key not count to the total
+
+.Parameter KeyCount
+The amount of keys to retrieve
+
+.EXAMPLE
+Get-RedisRandomKeys -Pattern 'Toaster*' -ScriptBlock {return $true} -KeyCount 10
+
+#>
 function Get-RedisRandomKeys
 {
     [CmdletBinding()]
