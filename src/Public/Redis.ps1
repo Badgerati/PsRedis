@@ -283,6 +283,23 @@ function Get-RedisKeysCount
     return $keys
 }
 
+<#
+.SYNOPSIS
+Gets the details of a redis key with the supplied key
+
+.DESCRIPTION
+Gets the details of a redis key with the supplied key
+
+.Parameter Key
+The key name of the key that will be retrieve
+
+.Parameter Type
+(Optional) The key type, helps to reduce the amount of round trips if already known
+
+.EXAMPLE
+Get-RedisKeyDetails -Key 'Grapes' -Type 'Set'
+
+#>
 function Get-RedisKeyDetails
 {
     [CmdletBinding()]
