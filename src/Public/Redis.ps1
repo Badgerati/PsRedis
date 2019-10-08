@@ -383,6 +383,24 @@ function Get-RedisKey
     return $value
 }
 
+<#
+.SYNOPSIS
+Gets the length of a redis key value. 
+If the key is of type set then it will return the amount of items in the set.
+Otherwise, it will return the amount of characters in the value
+
+.DESCRIPTION
+Gets the length of a redis key value. 
+If the key is of type set then it will return the amount of items in the set.
+Otherwise, it will return the amount of characters in the value
+
+.Parameter Key
+The key name of the key that will be retrieve for the length
+
+.EXAMPLE
+Get-RedisKeyValueLength -Key 'Grapes'
+
+#>
 function Get-RedisKeyValueLength
 {
     [CmdletBinding()]
