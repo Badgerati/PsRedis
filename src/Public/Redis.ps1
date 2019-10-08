@@ -161,6 +161,26 @@ function Get-RedisUptime
     return ($info[0] | Where-Object { $_.Key -ieq $key } | Select-Object -ExpandProperty Value)
 }
 
+<#
+.SYNOPSIS
+Sets a new string redis key
+
+.DESCRIPTION
+Sets a new string redis key
+
+.Parameter Key
+The name of the key being set
+
+.Parameter Value
+The value of the key being set
+
+.Parameter TimeOut
+(Optional) When the key will expire. If not passed then a expire time will not be set
+
+.EXAMPLE
+Set-RedisKey -Key 'SessionGuid' -Value 'SessionData'
+
+#>
 function Set-RedisKey
 {
     [CmdletBinding()]
