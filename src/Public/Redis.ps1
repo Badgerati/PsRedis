@@ -1,3 +1,20 @@
+<#
+.SYNOPSIS
+Initializes the connection with the redis server
+
+.DESCRIPTION
+Initializes the connection with the redis server
+
+.Parameter ConnectionString
+The connection string to connect to the redis server. Example: `"redisUrl.com:6380,password=PaSSwOrd,ssl=True,abortConnect=False"`
+
+.Parameter ReturnConnection
+Switch for if the connection should be returned.
+
+.EXAMPLE
+Initialize-RedisConnection -ConnectionString "redisUrl.com:6380,password=PaSSwOrd,ssl=True,abortConnect=False"
+
+#>
 function Initialize-RedisConnection
 {
     [CmdletBinding()]
