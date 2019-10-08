@@ -414,6 +414,17 @@ function Get-RedisKeyValueLength
     return Get-RedisKeyValueLengthPrivate -Key $Key
 }
 
+<#
+.SYNOPSIS
+Gets a random key from the redis server
+
+.DESCRIPTION
+Gets a random key from the redis server
+
+.EXAMPLE
+Get-RedisRandomKey
+
+#>
 function Get-RedisRandomKey
 {
     [CmdletBinding()]
