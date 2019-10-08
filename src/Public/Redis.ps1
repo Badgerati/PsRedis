@@ -110,6 +110,17 @@ function Get-RedisInfoKeys
     return $k
 }
 
+<#
+.SYNOPSIS
+Gets the results of the redis info command
+
+.DESCRIPTION
+Gets the results of the redis info command
+
+.EXAMPLE
+Get-RedisInfo
+
+#>
 function Get-RedisInfo
 {
     [CmdletBinding()]
