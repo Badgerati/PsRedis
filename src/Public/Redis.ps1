@@ -205,6 +205,20 @@ function Set-RedisKey
     return $value
 }
 
+<#
+.SYNOPSIS
+Removes all keys with a supplied pattern
+
+.DESCRIPTION
+Removes all keys with a supplied pattern
+
+.Parameter Pattern
+The pattern to match the keys to be removed. Example '*' will remove all keys, 'Session*' will remove all keys that start with `Session`
+
+.EXAMPLE
+Remove-RedisKeys -Pattern 'Cheese*'
+
+#>
 function Remove-RedisKeys
 {
     [CmdletBinding()]
