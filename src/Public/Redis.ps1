@@ -310,6 +310,7 @@ function Get-RedisKeyDetails
         $Key,
 
         [Parameter()]
+        [ValidateSet('hash', 'set', 'string')]
         [string]
         $Type
     )
