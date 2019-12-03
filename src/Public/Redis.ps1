@@ -27,8 +27,6 @@ function Initialize-RedisConnection
         $ReturnConnection
     )
 
-    Add-RedisDll
-
     if (!(Test-RedisIsConnected $Global:PsRedisCacheConnection))
     {
         if ([string]::IsNullOrWhiteSpace($ConnectionString)) {

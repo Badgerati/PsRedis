@@ -1,1 +1,0 @@
-nuget restore .\packages.config -PackagesDirectory .\src\packages
