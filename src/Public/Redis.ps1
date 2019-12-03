@@ -6,20 +6,20 @@ Initializes the connection with the redis server
 Initializes the connection with the redis server
 
 .Parameter ConnectionString
-The connection string to connect to the redis server. Example: `"redisUrl.com:6380,password=PaSSwOrd,ssl=True,abortConnect=False"`
+The connection string to connect to the redis server. Example: "redisUrl.com:6380,password=PaSSwOrd,ssl=True,abortConnect=False"
 
 .Parameter ReturnConnection
 Switch for if the connection should be returned.
 
 .EXAMPLE
-Initialize-RedisConnection -ConnectionString "redisUrl.com:6380,password=PaSSwOrd,ssl=True,abortConnect=False"
+Connect-Redis -ConnectionString "redisUrl.com:6380,password=PaSSwOrd,ssl=True,abortConnect=False"
 
 #>
-function Initialize-RedisConnection
+function Connect-Redis
 {
     [CmdletBinding()]
     param (
-        [Parameter()]
+        [Parameter(Mandatory=$true)]
         [string]
         $ConnectionString,
 
@@ -63,10 +63,10 @@ Closes the connection with the redis server
 Closes the connection with the redis server
 
 .EXAMPLE
-Close-RedisConnection
+Disconnect-Redis
 
 #>
-function Close-RedisConnection
+function Disconnect-Redis
 {
     [CmdletBinding()]
     param()
@@ -79,6 +79,62 @@ function Close-RedisConnection
         }
 
         $Global:PsRedisCacheConnection = $null
+    }
+}
+
+<#
+.SYNOPSIS
+Connects to Redis, invokes a script, and then disconencts the session.
+
+.DESCRIPTION
+Connects to Redis, invokes a script, and then disconencts the session.
+
+.PARAMETER ConnectionString
+The connection string to connect to the redis server. Example: "redisUrl.com:6380,password=PaSSwOrd,ssl=True,abortConnect=False"
+
+.PARAMETER ScriptBlock
+The ScriptBlock to be invoked with other PsRedis functions.
+
+.PARAMETER Arguments
+Any options Arguments to supply tot eh ScriptBlock
+
+.EXAMPLE
+Invoke-RedisScript -ConnectionString 'redisUrl.com:6380' -ScriptBlock { Get-RedisInfo }
+#>
+
+function Invoke-RedisScript
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]
+        $ConnectionString,
+
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNull()]
+        [scriptblock]
+        $ScriptBlock,
+
+        [Parameter()]
+        [object[]]
+        $Arguments
+    )
+
+    # connect to redis
+    Connect-Redis -ConnectionString $ConnectionString
+
+    try {
+        # run the script
+        if (($null -eq $Arguments) -or ($Arguments.Length -eq 0)) {
+            . $ScriptBlock
+        }
+        else {
+            . $ScriptBlock @Arguments
+        }
+    }
+    finally {
+        # disconnect from redis
+        Disconnect-Redis
     }
 }
 
@@ -161,25 +217,25 @@ function Get-RedisUptime
 
 <#
 .SYNOPSIS
-Sets a new string redis key
+Adds a new string redis key
 
 .DESCRIPTION
-Sets a new string redis key
+Adds a new string redis key
 
 .Parameter Key
-The name of the key being set
+The name of the key being added
 
 .Parameter Value
-The value of the key being set
+The value of the key being added
 
 .Parameter TimeOut
 (Optional) When the key will expire. If not passed then a expire time will not be set
 
 .EXAMPLE
-Set-RedisKey -Key 'SessionGuid' -Value 'SessionData'
+Add-RedisKey -Key 'SessionGuid' -Value 'SessionData'
 
 #>
-function Set-RedisKey
+function Add-RedisKey
 {
     [CmdletBinding()]
     param (
@@ -211,7 +267,7 @@ Removes all keys with a supplied pattern
 Removes all keys with a supplied pattern
 
 .Parameter Pattern
-The pattern to match the keys to be removed. Example '*' will remove all keys, 'Session*' will remove all keys that start with `Session`
+The pattern to match the keys to be removed. Example '*' will remove all keys, 'Session*' will remove all keys that start with 'Session'
 
 .EXAMPLE
 Remove-RedisKeys -Pattern 'Cheese*'
@@ -251,7 +307,7 @@ Gets the count of all the keys with a supplied pattern
 Gets the count of all the keys with a supplied pattern
 
 .Parameter Pattern
-The pattern to match the keys to be retrieved. Example '*' will retrieve all keys, 'Session*' will retrieve all keys that start with `Session`
+The pattern to match the keys to be retrieved. Example '*' will retrieve all keys, 'Session*' will retrieve all keys that start with 'Session'
 
 .EXAMPLE
 Get-RedisKeysCount -Pattern 'Cheese*'

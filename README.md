@@ -26,11 +26,11 @@ Import-Module .\src\PsRedis.psm1
 You scripts must first open a connection, and then close it:
 
 ```powershell
-Initialize-RedisConnection -ConnectionString $ConnectionString
+Connect-Redis -ConnectionString $ConnectionString
 
 # logic
 
-Close-RedisConnection
+Disconnect-Redis
 ```
 
 ### Return INFO about an Instance
@@ -76,7 +76,7 @@ Remove-RedisKeys -Pattern 'user:*' -MaxDelete 15000
 
 ## Functions
 
-* Close-RedisConnection
+* Disconnect-Redis
 * Get-RedisConnection
 * Get-RedisDatabase
 * Get-RedisInfo
@@ -89,7 +89,7 @@ Remove-RedisKeys -Pattern 'user:*' -MaxDelete 15000
 * Get-RedisKeyValueLength
 * Get-RedisRandomKey
 * Get-RedisUptime
-* Initialize-RedisConnection
+* Connect-Redis
 * Remove-RedisKey
 * Remove-RedisKeys
 * Set-RedisIncrementKey
