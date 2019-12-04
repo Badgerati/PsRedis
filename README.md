@@ -1,5 +1,8 @@
 # PsRedis
 
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/Badgerati/PsRedis/master/LICENSE.txt)
+[![PowerShell](https://img.shields.io/powershellgallery/dt/psredis.svg?label=PowerShell&colorB=085298)](https://www.powershellgallery.com/packages/PsRedis)
+
 PowerShell module for interacting with Redis caches, via the StackExchange.Redis library.
 
 > Requires PowerShell 5.0+
