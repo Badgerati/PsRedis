@@ -10,7 +10,7 @@ PowerShell module for interacting with Redis caches, via the StackExchange.Redis
 ## Install
 
 ```powershell
-Install-Module -Name Parcel
+Install-Module -Name PsRedis
 Import-Module PsRedis
 ```
 
