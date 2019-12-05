@@ -7,13 +7,14 @@ PowerShell module for interacting with Redis caches, via the StackExchange.Redis
 
 > Requires PowerShell 5.0+
 
-## Usage
-
-Before running any of the examples, ensure you have imported the PsRedis module:
+## Install
 
 ```powershell
+Install-Module -Name Parcel
 Import-Module PsRedis
 ```
+
+## Usage
 
 Your scripts must first open a connection, and then close it:
 
