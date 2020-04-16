@@ -16,6 +16,7 @@ function Get-RedisKeyValueLengthPrivate
         [Parameter(ParameterSetName="Key")]
         [string]
         $Key,
+
         [Parameter(ParameterSetName="Data")]
         $Data
     )

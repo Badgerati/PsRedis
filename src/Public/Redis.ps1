@@ -1,17 +1,29 @@
-function Initialize-RedisConnection
+<#
+.SYNOPSIS
+Initializes the connection with the redis server
+
+.DESCRIPTION
+Initializes the connection with the redis server
+
+.Parameter ConnectionString
+The connection string to connect to the redis server. Example: "redisUrl.com:6380,password=PaSSwOrd,ssl=True,abortConnect=False"
+
+.EXAMPLE
+Connect-Redis -ConnectionString "redisUrl.com:6380,password=PaSSwOrd,ssl=True,abortConnect=False"
+#>
+function Connect-Redis
 {
     [CmdletBinding()]
     param (
-        [Parameter()]
+        [Parameter(Mandatory=$true)]
         [string]
-        $ConnectionString,
-
-        [switch]
-        $ReturnConnection
+        $ConnectionString
     )
 
-    Add-RedisDll
+    # first, disconnect any existing connection
+    Disconnect-Redis
 
+    # open a new connection
     if (!(Test-RedisIsConnected $Global:PsRedisCacheConnection))
     {
         if ([string]::IsNullOrWhiteSpace($ConnectionString)) {
@@ -25,6 +37,7 @@ function Initialize-RedisConnection
         }
     }
 
+    # set the redis server
     $server = $Global:PsRedisCacheConnection.GetEndPoints()[0]
 
     if (!(Test-RedisIsConnected $Global:PsRedisServerConnection))
@@ -34,13 +47,19 @@ function Initialize-RedisConnection
             throw "Failed to open connection to server"
         }
     }
-
-    if ($ReturnConnection) {
-        return $Global:PsRedisServerConnection
-    }
 }
 
-function Close-RedisConnection
+<#
+.SYNOPSIS
+Closes the connection with the redis server
+
+.DESCRIPTION
+Closes the connection with the redis server
+
+.EXAMPLE
+Disconnect-Redis
+#>
+function Disconnect-Redis
 {
     [CmdletBinding()]
     param()
@@ -56,6 +75,71 @@ function Close-RedisConnection
     }
 }
 
+<#
+.SYNOPSIS
+Connects to Redis, invokes a script, and then disconencts the session.
+
+.DESCRIPTION
+Connects to Redis, invokes a script, and then disconencts the session.
+
+.PARAMETER ConnectionString
+The connection string to connect to the redis server. Example: "redisUrl.com:6380,password=PaSSwOrd,ssl=True,abortConnect=False"
+
+.PARAMETER ScriptBlock
+The ScriptBlock to be invoked with other PsRedis functions.
+
+.PARAMETER Arguments
+Any options Arguments to supply tot eh ScriptBlock
+
+.EXAMPLE
+Invoke-RedisScript -ConnectionString 'redisUrl.com:6380' -ScriptBlock { Get-RedisInfo }
+#>
+function Invoke-RedisScript
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]
+        $ConnectionString,
+
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNull()]
+        [scriptblock]
+        $ScriptBlock,
+
+        [Parameter()]
+        [object[]]
+        $Arguments
+    )
+
+    # connect to redis
+    Connect-Redis -ConnectionString $ConnectionString
+
+    try {
+        # run the script
+        if (($null -eq $Arguments) -or ($Arguments.Length -eq 0)) {
+            . $ScriptBlock
+        }
+        else {
+            . $ScriptBlock @Arguments
+        }
+    }
+    finally {
+        # disconnect from redis
+        Disconnect-Redis
+    }
+}
+
+<#
+.SYNOPSIS
+Gets the keys section of the redis info command
+
+.DESCRIPTION
+Gets the keys section of the redis info command
+
+.EXAMPLE
+Get-RedisInfoKeys
+#>
 function Get-RedisInfoKeys
 {
     [CmdletBinding()]
@@ -71,6 +155,16 @@ function Get-RedisInfoKeys
     return $k
 }
 
+<#
+.SYNOPSIS
+Gets the results of the redis info command
+
+.DESCRIPTION
+Gets the results of the redis info command
+
+.EXAMPLE
+Get-RedisInfo
+#>
 function Get-RedisInfo
 {
     [CmdletBinding()]
@@ -82,6 +176,19 @@ function Get-RedisInfo
     return $info
 }
 
+<#
+.SYNOPSIS
+Gets the uptime of the redis server
+
+.DESCRIPTION
+Gets the uptime of the redis server
+
+.Parameter Granularity
+Sets the granularity of the up time of the redis server. Can be either Seconds or Days
+
+.EXAMPLE
+Get-RedisUptime -Granularity 'Seconds'
+#>
 function Get-RedisUptime
 {
     [CmdletBinding()]
@@ -97,7 +204,26 @@ function Get-RedisUptime
     return ($info[0] | Where-Object { $_.Key -ieq $key } | Select-Object -ExpandProperty Value)
 }
 
-function Set-RedisKey
+<#
+.SYNOPSIS
+Adds a new string redis key
+
+.DESCRIPTION
+Adds a new string redis key
+
+.Parameter Key
+The name of the key being added
+
+.Parameter Value
+The value of the key being added
+
+.Parameter TTL
+(Optional) When the key will expire. If not passed then a expire time will not be set
+
+.EXAMPLE
+Add-RedisKey -Key 'SessionGuid' -Value 'SessionData'
+#>
+function Add-RedisKey
 {
     [CmdletBinding()]
     param (
@@ -112,15 +238,28 @@ function Set-RedisKey
 
         [Parameter()]
         [timespan]
-        $TimeOut
+        $TTL
     )
 
     $db = Get-RedisDatabase
-    $value = $db.StringSet($Key, $Value, $TimeOut)
+    $value = $db.StringSet($Key, $Value, $TTL)
 
     return $value
 }
 
+<#
+.SYNOPSIS
+Removes all keys with a supplied pattern
+
+.DESCRIPTION
+Removes all keys with a supplied pattern
+
+.Parameter Pattern
+The pattern to match the keys to be removed. Example '*' will remove all keys, 'Session*' will remove all keys that start with 'Session'
+
+.EXAMPLE
+Remove-RedisKeys -Pattern 'Cheese*'
+#>
 function Remove-RedisKeys
 {
     [CmdletBinding()]
@@ -147,6 +286,19 @@ function Remove-RedisKeys
     return $count
 }
 
+<#
+.SYNOPSIS
+Gets the count of all the keys with a supplied pattern
+
+.DESCRIPTION
+Gets the count of all the keys with a supplied pattern
+
+.Parameter Pattern
+The pattern to match the keys to be retrieved. Example '*' will retrieve all keys, 'Session*' will retrieve all keys that start with 'Session'
+
+.EXAMPLE
+Get-RedisKeysCount -Pattern 'Cheese*'
+#>
 function Get-RedisKeysCount
 {
     [CmdletBinding()]
@@ -171,6 +323,22 @@ function Get-RedisKeysCount
     return $keys
 }
 
+<#
+.SYNOPSIS
+Gets the details of a redis key with the supplied key
+
+.DESCRIPTION
+Gets the details of a redis key with the supplied key
+
+.Parameter Key
+The key name of the key that will be retrieve
+
+.Parameter Type
+(Optional) The key type, helps to reduce the amount of round trips if already known
+
+.EXAMPLE
+Get-RedisKeyDetails -Key 'Grapes' -Type 'Set'
+#>
 function Get-RedisKeyDetails
 {
     [CmdletBinding()]
@@ -181,6 +349,7 @@ function Get-RedisKeyDetails
         $Key,
 
         [Parameter()]
+        [ValidateSet('hash', 'set', 'string')]
         [string]
         $Type
     )
@@ -200,6 +369,22 @@ function Get-RedisKeyDetails
     }
 }
 
+<#
+.SYNOPSIS
+Gets the value of a redis key with the supplied key
+
+.DESCRIPTION
+Gets the value of a redis key with the supplied key
+
+.Parameter Key
+The key name of the key that will be retrieve
+
+.Parameter Type
+(Optional) The key type, helps to reduce the amount of round trips if already known
+
+.EXAMPLE
+Get-RedisKey -Key 'Grapes' -Type 'Set'
+#>
 function Get-RedisKey
 {
     [CmdletBinding()]
@@ -237,6 +422,23 @@ function Get-RedisKey
     return $value
 }
 
+<#
+.SYNOPSIS
+Gets the length of a redis key value. 
+If the key is of type set then it will return the amount of items in the set.
+Otherwise, it will return the amount of characters in the value
+
+.DESCRIPTION
+Gets the length of a redis key value. 
+If the key is of type set then it will return the amount of items in the set.
+Otherwise, it will return the amount of characters in the value
+
+.Parameter Key
+The key name of the key that will be retrieve for the length
+
+.EXAMPLE
+Get-RedisKeyValueLength -Key 'Grapes'
+#>
 function Get-RedisKeyValueLength
 {
     [CmdletBinding()]
@@ -250,6 +452,16 @@ function Get-RedisKeyValueLength
     return Get-RedisKeyValueLengthPrivate -Key $Key
 }
 
+<#
+.SYNOPSIS
+Gets a random key from the redis server
+
+.DESCRIPTION
+Gets a random key from the redis server
+
+.EXAMPLE
+Get-RedisRandomKey
+#>
 function Get-RedisRandomKey
 {
     [CmdletBinding()]
@@ -257,10 +469,29 @@ function Get-RedisRandomKey
 
     $db = Get-RedisDatabase
     $value = $db.KeyRandom()
-
     return $value
 }
 
+<#
+.SYNOPSIS
+Gets random keys from the redis server  matching a supplied pattern
+
+.DESCRIPTION
+Gets random keys from the redis server  matching a supplied pattern
+
+.Parameter Pattern
+The pattern then the key name needs to match
+
+.Parameter ScriptBlock
+A script block that will be ran for each key that matches the pattern.
+Return a value of $false to make the key not count to the total
+
+.Parameter KeyCount
+The amount of keys to retrieve
+
+.EXAMPLE
+Get-RedisRandomKeys -Pattern 'Toaster*' -ScriptBlock {return $true} -KeyCount 10
+#>
 function Get-RedisRandomKeys
 {
     [CmdletBinding()]
@@ -363,6 +594,19 @@ function Get-RedisRandomKeysQuick
     return $keys
 }
 
+<#
+.SYNOPSIS
+Get a key's type from Redis.
+
+.DESCRIPTION
+Get a key's type from Redis.
+
+.PARAMETER Key
+The Key name to lookup.
+
+.EXAMPLE
+Get-RedisKeyType -Key 'UserId:123'
+#>
 function Get-RedisKeyType
 {
     [CmdletBinding()]
@@ -378,6 +622,19 @@ function Get-RedisKeyType
     return $value.ToString()
 }
 
+<#
+.SYNOPSIS
+Get a key's TTL from Redis.
+
+.DESCRIPTION
+Get a key's TTL from Redis.
+
+.PARAMETER Key
+The Key name to lookup.
+
+.EXAMPLE
+Get-RedisKeyTTL -Key 'UserId:123'
+#>
 function Get-RedisKeyTTL
 {
     [CmdletBinding()]
@@ -390,10 +647,25 @@ function Get-RedisKeyTTL
 
     $db = Get-RedisDatabase
     $value = $db.KeyTimeToLive($Key)
-
     return $value
 }
 
+<#
+.SYNOPSIS
+Set a key's TTL in Redis.
+
+.DESCRIPTION
+Set a key's TTL in Redis.
+
+.PARAMETER Key
+The Key to update.
+
+.PARAMETER TTL
+The TTL, in seconds.
+
+.EXAMPLE
+Set-RedisKeyTTL -Key 'UserId:123' -TTL 3600
+#>
 function Set-RedisKeyTTL
 {
     [CmdletBinding()]
@@ -406,11 +678,11 @@ function Set-RedisKeyTTL
         [Parameter(Mandatory=$true)]
         [ValidateNotNull()]
         [int]
-        $TtlInSeconds
+        $TTL
     )
 
     $db = Get-RedisDatabase
-    $db.KeyExpire($Key, [TimeSpan]::FromSeconds($TtlInSeconds)) | Out-Null
+    $db.KeyExpire($Key, [TimeSpan]::FromSeconds($TTL)) | Out-Null
 }
 
 function Get-RedisKeys
@@ -485,7 +757,7 @@ function Remove-RedisKey
     $db.KeyDelete($Key) | Out-Null
 }
 
-function Remove-RedisSetMembers
+function Remove-RedisSetMember
 {
     [CmdletBinding()]
     param (
@@ -497,14 +769,14 @@ function Remove-RedisSetMembers
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string[]]
-        $Members
+        $Member
     )
 
     $db = Get-RedisDatabase
-    $db.SetRemove($Key, $Members) | Out-Null
+    $db.SetRemove($Key, $Member) | Out-Null
 }
 
-function Add-RedisSetMembers
+function Add-RedisSetMember
 {
     [CmdletBinding()]
     param (
@@ -516,11 +788,11 @@ function Add-RedisSetMembers
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string[]]
-        $Members
+        $Member
     )
 
     $db = Get-RedisDatabase
-    $db.SetAdd($Key, $Members) | Out-Null
+    $db.SetAdd($Key, $Member) | Out-Null
 }
 
 function Set-RedisIncrementKey
@@ -539,11 +811,10 @@ function Set-RedisIncrementKey
 
     $db = Get-RedisDatabase
     $value = $db.StringIncrement($Key, $Increment) | Out-Null
-
     return $value
 }
 
-function Test-RedisTimings
+function Test-RedisTiming
 {
     [CmdletBinding()]
     param (

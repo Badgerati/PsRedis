@@ -11,7 +11,7 @@
     RootModule = 'PsRedis.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.0.0'
+    ModuleVersion = '0.9.0'
 
     # ID used to uniquely identify this module
     GUID = 'b7c3261d-7fef-46e3-8060-12dcbcc7a2b1'
@@ -23,7 +23,7 @@
     Copyright = 'Copyright (c) 2019 Matthew Kelly (Badgerati), licensed under the MIT License.'
 
     # Description of the functionality provided by this module
-    Description = 'Allows for the interaction with a Redis database.'
+    Description = 'Allows for the interaction with a Redis cache'
 
     # Minimum version of the Windows PowerShell engine required by this module
     PowerShellVersion = '5.0'
