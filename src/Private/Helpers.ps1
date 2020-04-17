@@ -49,11 +49,11 @@ function Get-RedisDatabase
         $ConnectionName
     )
 
-    $cacheConnection = $Global:PsRedisServerConnection
-
-    if (![string]::IsNullOrWhiteSpace($ConnectionName)){
-        $cacheConnection = $Global:PsRedisCacheConnections[$ConnectionName]
+    if ([string]::IsNullOrWhiteSpace($ConnectionName)){
+        $ConnectionName = "__default__"
     }
+
+    $cacheConnection = $Global:PsRedisCacheConnections[$ConnectionName]
 
     if (!(Test-RedisIsConnected $cacheConnection)) {
         throw "No Redis connection has been initialized"
@@ -70,11 +70,11 @@ function Get-RedisConnection
         $ConnectionName
     )
 
-    $serverConnection = $Global:PsRedisServerConnection
-
-    if (![string]::IsNullOrWhiteSpace($ConnectionName)){
-        $serverConnection = $Global:PsRedisServerConnections[$ConnectionName]
+    if ([string]::IsNullOrWhiteSpace($ConnectionName)){
+        $ConnectionName = "__default__"
     }
+
+    $serverConnection = $Global:PsRedisServerConnections[$ConnectionName]
 
     if ($null -eq $serverConnection) {
         throw "No Redis connection has been initialized"

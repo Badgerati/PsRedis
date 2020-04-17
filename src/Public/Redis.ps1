@@ -28,64 +28,37 @@ function Connect-Redis
 
     if ($null -eq $ConnectionName)
     {
-        # open a new connection
-        if (!(Test-RedisIsConnected $Global:PsRedisCacheConnection))
-        {
-            if ([string]::IsNullOrWhiteSpace($ConnectionString))
-            {
-                throw 'No connection string supplied when creating connection to Redis'
-            }
-
-            $Global:PsRedisServerConnection = $null
-            $Global:PsRedisCacheConnection = [StackExchange.Redis.ConnectionMultiplexer]::Connect($ConnectionString, $null)
-            if (!$?)
-            {
-                throw 'Failed to create connection to Redis'
-            }
-        }
-
-        # set the redis server
-        $server = $Global:PsRedisCacheConnection.GetEndPoints()[0]
-
-        if (!(Test-RedisIsConnected $Global:PsRedisServerConnection))
-        {
-            $Global:PsRedisServerConnection = $Global:PsRedisCacheConnection.GetServer($server)
-            if (!$?)
-            {
-                throw "Failed to open connection to server"
-            }
-        }
+        $ConnectionName = "__default__"
     }
-    else
+
+    # open a new connection
+    if (!(Test-RedisIsConnected $Global:PsRedisCacheConnections[$ConnectionName]))
     {
-        # open a new connection
-        if (!(Test-RedisIsConnected $Global:PsRedisCacheConnections[$ConnectionName]))
+        if ([string]::IsNullOrWhiteSpace($ConnectionString))
         {
-            if ([string]::IsNullOrWhiteSpace($ConnectionString))
-            {
-                throw 'No connection string supplied when creating connection to Redis'
-            }
-
-            $Global:PsRedisServerConnections[$ConnectionName] = $null
-            $Global:PsRedisCacheConnections[$ConnectionName] = [StackExchange.Redis.ConnectionMultiplexer]::Connect($ConnectionString, $null)
-            if (!$?)
-            {
-                throw 'Failed to create connection to Redis'
-            }
+            throw 'No connection string supplied when creating connection to Redis'
         }
 
-        # set the redis server
-        $server = $Global:PsRedisCacheConnections[$ConnectionName].GetEndPoints()[0]
-
-        if (!(Test-RedisIsConnected $Global:PsRedisServerConnections[$ConnectionName]))
+        $Global:PsRedisServerConnections[$ConnectionName] = $null
+        $Global:PsRedisCacheConnections[$ConnectionName] = [StackExchange.Redis.ConnectionMultiplexer]::Connect($ConnectionString, $null)
+        if (!$?)
         {
-            $Global:PsRedisServerConnections[$ConnectionName] = $Global:PsRedisCacheConnections[$ConnectionName].GetServer($server)
-            if (!$?)
-            {
-                throw "Failed to open connection to server"
-            }
+            throw 'Failed to create connection to Redis'
         }
     }
+
+    # set the redis server
+    $server = $Global:PsRedisCacheConnections[$ConnectionName].GetEndPoints()[0]
+
+    if (!(Test-RedisIsConnected $Global:PsRedisServerConnections[$ConnectionName]))
+    {
+        $Global:PsRedisServerConnections[$ConnectionName] = $Global:PsRedisCacheConnections[$ConnectionName].GetServer($server)
+        if (!$?)
+        {
+            throw "Failed to open connection to server"
+        }
+    }
+
 }
 
 <#
@@ -106,11 +79,12 @@ function Disconnect-Redis
         $ConnectionName
     )
 
-    $connection = $Global:PsRedisCacheConnection
-
-    if (![string]::IsNullOrWhiteSpace($ConnectionName)){
-        $connection = $Global:PsRedisCacheConnections[$ConnectionName]
+    if ([string]::IsNullOrWhiteSpace($ConnectionName))
+    {
+        $ConnectionName = "__default__"
     }
+
+    $connection = $Global:PsRedisCacheConnections[$ConnectionName]
 
     if (Test-RedisIsConnected $connection)
     {
