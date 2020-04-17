@@ -301,11 +301,23 @@ function Add-RedisKey
         $TTL,
 
         [Parameter()]
-        $ConnectionName
+        $ConnectionName,
+
+        [switch]
+        $HashType
     )
 
     $db = Get-RedisDatabase -ConnectionName $ConnectionName
-    $value = $db.StringSet($Key, $Value, $TTL)
+
+    if ($HashType){
+        $value = $db.HashSet($Key, $Value, 0)
+
+        Set-RedisKeyTTL -Key $Key -TTL $TTL.TotalSeconds -ConnectionName $ConnectionName
+    }
+    else{
+        $value = $db.StringSet($Key, $Value, $TTL)
+    }
+
 
     return $value
 }
@@ -471,7 +483,10 @@ function Get-RedisKey
         $Type,
 
         [Parameter()]
-        $ConnectionName
+        $ConnectionName,
+
+        [switch]
+        $HashAsHashEntry
     )
 
     $db = Get-RedisDatabase -ConnectionName $ConnectionName
@@ -482,7 +497,13 @@ function Get-RedisKey
 
     switch ($Type.ToLowerInvariant()) {
         'hash' {
-            $value = [string]($db.HashGetAll($Key)).Value
+            if ($HashAsHashEntry)
+            {
+                $value = $db.HashGetAll($Key)
+            }
+            else{
+                $value = [string]($db.HashGetAll($Key)).Value
+            }
         }
 
         'set' {
