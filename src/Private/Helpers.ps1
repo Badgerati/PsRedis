@@ -18,11 +18,14 @@ function Get-RedisKeyValueLengthPrivate
         $Key,
 
         [Parameter(ParameterSetName="Data")]
-        $Data
+        $Data,
+
+        [Parameter()]
+        $ConnectionName
     )
 
     if ($PSCmdlet.ParameterSetName -eq "Key"){
-        $value = Get-RedisKey -Key $Key
+        $value = Get-RedisKey -Key $Key -ConnectionName $ConnectionName
     }
     else{
         $value = $Data
@@ -41,23 +44,41 @@ function Get-RedisKeyValueLengthPrivate
 function Get-RedisDatabase
 {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()]
+        $ConnectionName
+    )
 
-    if (!(Test-RedisIsConnected $Global:PsRedisCacheConnection)) {
+    $cacheConnection = $Global:PsRedisServerConnection
+
+    if ($null -ne $ConnectionName){
+        $cacheConnection = $Global:PsRedisCacheConnections[$ConnectionName]
+    }
+
+    if (!(Test-RedisIsConnected $cacheConnection)) {
         throw "No Redis connection has been initialized"
     }
 
-    return $Global:PsRedisCacheConnection.GetDatabase($Global:PsRedisDatabaseIndex)
+    return $cacheConnection.GetDatabase($Global:PsRedisDatabaseIndex)
 }
 
 function Get-RedisConnection
 {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()]
+        $ConnectionName
+    )
 
-    if ($null -eq $Global:PsRedisServerConnection) {
+    $serverConnection = $Global:PsRedisServerConnection
+
+    if ($null -ne $ConnectionName){
+        $serverConnection = $Global:PsRedisServerConnections[$ConnectionName]
+    }
+
+    if ($null -eq $serverConnection) {
         throw "No Redis connection has been initialized"
     }
 
-    return $Global:PsRedisServerConnection
+    return $serverConnection
 }
