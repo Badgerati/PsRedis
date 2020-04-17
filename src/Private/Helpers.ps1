@@ -51,7 +51,7 @@ function Get-RedisDatabase
 
     $cacheConnection = $Global:PsRedisServerConnection
 
-    if ($null -ne $ConnectionName){
+    if (![string]::IsNullOrWhiteSpace($ConnectionName)){
         $cacheConnection = $Global:PsRedisCacheConnections[$ConnectionName]
     }
 
@@ -72,7 +72,7 @@ function Get-RedisConnection
 
     $serverConnection = $Global:PsRedisServerConnection
 
-    if ($null -ne $ConnectionName){
+    if (![string]::IsNullOrWhiteSpace($ConnectionName)){
         $serverConnection = $Global:PsRedisServerConnections[$ConnectionName]
     }
 

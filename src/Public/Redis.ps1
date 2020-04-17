@@ -108,7 +108,7 @@ function Disconnect-Redis
 
     $connection = $Global:PsRedisCacheConnection
 
-    if ($null -ne $ConnectionName){
+    if (![string]::IsNullOrWhiteSpace($ConnectionName)){
         $connection = $Global:PsRedisCacheConnections[$ConnectionName]
     }
 
