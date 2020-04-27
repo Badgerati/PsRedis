@@ -21,6 +21,7 @@ function Get-RedisKeyValueLengthPrivate
         $Data,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -46,6 +47,7 @@ function Get-RedisDatabase
     [CmdletBinding()]
     param(
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -67,6 +69,7 @@ function Get-RedisConnection
     [CmdletBinding()]
     param(
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -81,4 +84,41 @@ function Get-RedisConnection
     }
 
     return $serverConnection
+}
+
+<#
+.SYNOPSIS
+Closes the connection with the redis server
+
+.DESCRIPTION
+Closes the connection with the redis server
+
+.EXAMPLE
+Disconnect-Redis
+#>
+function Disconnect-RedisPrivate
+{
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [string]
+        $ConnectionName
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ConnectionName))
+    {
+        $ConnectionName = "__default__"
+    }
+
+    $connection = $Global:PsRedisCacheConnections[$ConnectionName]
+
+    if (Test-RedisIsConnected $connection)
+    {
+        $connection.Dispose()
+        if (!$?) {
+            throw "Failed to dispose Redis connection"
+        }
+
+        $connection = $null
+    }
 }

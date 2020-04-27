@@ -20,13 +20,14 @@ function Connect-Redis
         $ConnectionString,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
     # first, disconnect any existing connection
     Disconnect-Redis -ConnectionName $ConnectionName
 
-    if ($null -eq $ConnectionName)
+    if ([string]::IsNullOrWhiteSpace($ConnectionName))
     {
         $ConnectionName = "__default__"
     }
@@ -76,24 +77,18 @@ function Disconnect-Redis
     [CmdletBinding()]
     param(
         [Parameter()]
-        $ConnectionName
+        [string[]]
+        $ConnectionNames
     )
 
-    if ([string]::IsNullOrWhiteSpace($ConnectionName))
+    if ($null -eq $ConnectionNames -or $ConnectionNames.Count -eq 0)
     {
-        $ConnectionName = "__default__"
+        Disconnect-RedisPrivate
     }
 
-    $connection = $Global:PsRedisCacheConnections[$ConnectionName]
-
-    if (Test-RedisIsConnected $connection)
+    foreach($ConnectionName in $ConnectionNames)
     {
-        $connection.Dispose()
-        if (!$?) {
-            throw "Failed to dispose Redis connection"
-        }
-
-        $connection = $null
+        Disconnect-RedisPrivate -ConnectionName $ConnectionName
     }
 }
 
@@ -134,6 +129,7 @@ function Invoke-RedisScript
         $Arguments,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -170,6 +166,7 @@ function Get-RedisInfoKeys
     [CmdletBinding()]
     param(
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -198,6 +195,7 @@ function Get-RedisInfo
     [CmdletBinding()]
     param(
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -230,6 +228,7 @@ function Get-RedisUptime
         $Granularity,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -275,15 +274,18 @@ function Add-RedisKey
         $TTL,
 
         [Parameter()]
+        [string]
         $ConnectionName,
 
-        [switch]
-        $HashType
+        [Parameter()]
+        [ValidateSet('hash', 'string')]
+        [string]
+        $HashType = 'string'
     )
 
     $db = Get-RedisDatabase -ConnectionName $ConnectionName
 
-    if ($HashType){
+    if ($HashType -ieq "hash"){
         $value = $db.HashSet($Key, $Value, 0)
 
         Set-RedisKeyTTL -Key $Key -TTL $TTL.TotalSeconds -ConnectionName $ConnectionName
@@ -319,6 +321,7 @@ function Remove-RedisKeys
         $Pattern,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -360,6 +363,7 @@ function Get-RedisKeysCount
         $Pattern = '*',
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -409,14 +413,18 @@ function Get-RedisKeyDetails
         $Type,
 
         [Parameter()]
-        $ConnectionName
+        [string]
+        $ConnectionName,
+
+        [switch]
+        $HashAsHashEntry
     )
 
     if ([string]::IsNullOrWhitespace($Type)){
         $Type = Get-RedisKeyType -Key $Key -ConnectionName $ConnectionName
     }
 
-    $value = Get-RedisKey -Key $Key -Type $Type -ConnectionName $ConnectionName
+    $value = Get-RedisKey -Key $Key -Type $Type -ConnectionName $ConnectionName -HashAsHashEntry:$HashAsHashEntry
 
     return @{
         Key = $Key
@@ -457,6 +465,7 @@ function Get-RedisKey
         $Type,
 
         [Parameter()]
+        [string]
         $ConnectionName,
 
         [switch]
@@ -481,7 +490,7 @@ function Get-RedisKey
         }
 
         'set' {
-            $value = @([string]($db.SetMembers($Key)) -isplit '\s+')
+            $value = @([string]($db.SetMembers($Key)) -isplit '\s+') #todo:asdfasf
         }
 
         default {
@@ -519,6 +528,7 @@ function Get-RedisKeyValueLength
         $Key,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -540,6 +550,7 @@ function Get-RedisRandomKey
     [CmdletBinding()]
     param(
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -585,6 +596,7 @@ function Get-RedisRandomKeys
         $KeyCount = 1,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -642,6 +654,7 @@ function Get-RedisRandomKeysQuick
         $PageSize = 10,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -699,6 +712,7 @@ function Get-RedisKeyType
         $Key,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -730,6 +744,7 @@ function Get-RedisKeyTTL
         $Key,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -769,6 +784,7 @@ function Set-RedisKeyTTL
         $TTL,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -801,6 +817,7 @@ function Get-RedisKeys
         $PageSize = 10,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -847,6 +864,7 @@ function Remove-RedisKey
         $Key,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -869,6 +887,7 @@ function Remove-RedisSetMember
         $Member,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -891,6 +910,7 @@ function Add-RedisSetMember
         $Member,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -912,6 +932,7 @@ function Set-RedisIncrementKey
         $Increment = 1,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
@@ -937,6 +958,7 @@ function Test-RedisTiming
         $NoSleep,
 
         [Parameter()]
+        [string]
         $ConnectionName
     )
 
