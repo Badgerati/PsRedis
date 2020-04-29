@@ -266,7 +266,7 @@ function Add-RedisKey
         $Key,
 
         [Parameter()]
-        [string]
+        [object]
         $Value,
 
         [Parameter()]
