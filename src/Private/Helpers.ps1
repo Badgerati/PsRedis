@@ -18,11 +18,15 @@ function Get-RedisKeyValueLengthPrivate
         $Key,
 
         [Parameter(ParameterSetName="Data")]
-        $Data
+        $Data,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
     if ($PSCmdlet.ParameterSetName -eq "Key"){
-        $value = Get-RedisKey -Key $Key
+        $value = Get-RedisKey -Key $Key -ConnectionName $ConnectionName
     }
     else{
         $value = $Data
@@ -41,23 +45,80 @@ function Get-RedisKeyValueLengthPrivate
 function Get-RedisDatabase
 {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()]
+        [string]
+        $ConnectionName
+    )
 
-    if (!(Test-RedisIsConnected $Global:PsRedisCacheConnection)) {
+    if ([string]::IsNullOrWhiteSpace($ConnectionName)){
+        $ConnectionName = "__default__"
+    }
+
+    $cacheConnection = $Global:PsRedisCacheConnections[$ConnectionName]
+
+    if (!(Test-RedisIsConnected $cacheConnection)) {
         throw "No Redis connection has been initialized"
     }
 
-    return $Global:PsRedisCacheConnection.GetDatabase($Global:PsRedisDatabaseIndex)
+    return $cacheConnection.GetDatabase($Global:PsRedisDatabaseIndex)
 }
 
 function Get-RedisConnection
 {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()]
+        [string]
+        $ConnectionName
+    )
 
-    if ($null -eq $Global:PsRedisServerConnection) {
+    if ([string]::IsNullOrWhiteSpace($ConnectionName)){
+        $ConnectionName = "__default__"
+    }
+
+    $serverConnection = $Global:PsRedisServerConnections[$ConnectionName]
+
+    if ($null -eq $serverConnection) {
         throw "No Redis connection has been initialized"
     }
 
-    return $Global:PsRedisServerConnection
+    return $serverConnection
+}
+
+<#
+.SYNOPSIS
+Closes the connection with the redis server
+
+.DESCRIPTION
+Closes the connection with the redis server
+
+.EXAMPLE
+Disconnect-Redis
+#>
+function Disconnect-RedisPrivate
+{
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [string]
+        $ConnectionName
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ConnectionName))
+    {
+        $ConnectionName = "__default__"
+    }
+
+    $connection = $Global:PsRedisCacheConnections[$ConnectionName]
+
+    if (Test-RedisIsConnected $connection)
+    {
+        $connection.Dispose()
+        if (!$?) {
+            throw "Failed to dispose Redis connection"
+        }
+
+        $connection = $null
+    }
 }
