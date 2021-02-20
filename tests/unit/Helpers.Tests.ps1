@@ -50,7 +50,7 @@ Describe 'Test-RedisIsConnected'{
 
 Describe 'Get-RedisConnection'{
     It 'Error'{
-        $Global:PsRedisServerConnection = $null
+        $Global:PsRedisServerConnections["__default__"] = $null
 
         {Get-RedisConnection} | Should Throw "No Redis connection has been initialized"
     }
@@ -58,11 +58,11 @@ Describe 'Get-RedisConnection'{
 
 Describe 'Get-RedisDatabase'{
     It 'Error'{
-        $Global:PsRedisCacheConnection = $null
+        $Global:PsRedisCacheConnections["__default__"] = $null
 
         {Get-RedisDatabase} | Should Throw "No Redis connection has been initialized"
 
-        $Global:PsRedisCacheConnection = @{"IsConnected" = $false}
+        $Global:PsRedisCacheConnections["__default__"] = @{"IsConnected" = $false}
 
         {Get-RedisDatabase} | Should Throw "No Redis connection has been initialized"
     }

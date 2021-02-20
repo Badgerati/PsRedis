@@ -17,36 +17,49 @@ function Connect-Redis
     param (
         [Parameter(Mandatory=$true)]
         [string]
-        $ConnectionString
+        $ConnectionString,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
     # first, disconnect any existing connection
-    Disconnect-Redis
+    Disconnect-Redis -ConnectionName $ConnectionName
+
+    if ([string]::IsNullOrWhiteSpace($ConnectionName))
+    {
+        $ConnectionName = "__default__"
+    }
 
     # open a new connection
-    if (!(Test-RedisIsConnected $Global:PsRedisCacheConnection))
+    if (!(Test-RedisIsConnected $Global:PsRedisCacheConnections[$ConnectionName]))
     {
-        if ([string]::IsNullOrWhiteSpace($ConnectionString)) {
+        if ([string]::IsNullOrWhiteSpace($ConnectionString))
+        {
             throw 'No connection string supplied when creating connection to Redis'
         }
 
-        $Global:PsRedisServerConnection = $null
-        $Global:PsRedisCacheConnection = [StackExchange.Redis.ConnectionMultiplexer]::Connect($ConnectionString, $null)
-        if (!$?) {
+        $Global:PsRedisServerConnections[$ConnectionName] = $null
+        $Global:PsRedisCacheConnections[$ConnectionName] = [StackExchange.Redis.ConnectionMultiplexer]::Connect($ConnectionString, $null)
+        if (!$?)
+        {
             throw 'Failed to create connection to Redis'
         }
     }
 
     # set the redis server
-    $server = $Global:PsRedisCacheConnection.GetEndPoints()[0]
+    $server = $Global:PsRedisCacheConnections[$ConnectionName].GetEndPoints()[0]
 
-    if (!(Test-RedisIsConnected $Global:PsRedisServerConnection))
+    if (!(Test-RedisIsConnected $Global:PsRedisServerConnections[$ConnectionName]))
     {
-        $Global:PsRedisServerConnection = $Global:PsRedisCacheConnection.GetServer($server)
-        if (!$?) {
+        $Global:PsRedisServerConnections[$ConnectionName] = $Global:PsRedisCacheConnections[$ConnectionName].GetServer($server)
+        if (!$?)
+        {
             throw "Failed to open connection to server"
         }
     }
+
 }
 
 <#
@@ -62,16 +75,20 @@ Disconnect-Redis
 function Disconnect-Redis
 {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()]
+        [string[]]
+        $ConnectionNames
+    )
 
-    if (Test-RedisIsConnected $Global:PsRedisCacheConnection)
+    if ($null -eq $ConnectionNames -or $ConnectionNames.Count -eq 0)
     {
-        $Global:PsRedisCacheConnection.Dispose()
-        if (!$?) {
-            throw "Failed to dispose Redis connection"
-        }
+        Disconnect-RedisPrivate
+    }
 
-        $Global:PsRedisCacheConnection = $null
+    foreach($ConnectionName in $ConnectionNames)
+    {
+        Disconnect-RedisPrivate -ConnectionName $ConnectionName
     }
 }
 
@@ -109,11 +126,15 @@ function Invoke-RedisScript
 
         [Parameter()]
         [object[]]
-        $Arguments
+        $Arguments,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
     # connect to redis
-    Connect-Redis -ConnectionString $ConnectionString
+    Connect-Redis -ConnectionString $ConnectionString -ConnectionName $ConnectionName
 
     try {
         # run the script
@@ -126,7 +147,7 @@ function Invoke-RedisScript
     }
     finally {
         # disconnect from redis
-        Disconnect-Redis
+        Disconnect-Redis -ConnectionName $ConnectionName
     }
 }
 
@@ -143,9 +164,13 @@ Get-RedisInfoKeys
 function Get-RedisInfoKeys
 {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()]
+        [string]
+        $ConnectionName
+    )
 
-    $conn = Get-RedisConnection
+    $conn = Get-RedisConnection -ConnectionName $ConnectionName
     $k = 0
 
     if (($conn.Info() | Select-Object -Last 1)[0].Value -imatch 'keys=(\d+)') {
@@ -168,9 +193,13 @@ Get-RedisInfo
 function Get-RedisInfo
 {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()]
+        [string]
+        $ConnectionName
+    )
 
-    $conn = Get-RedisConnection
+    $conn = Get-RedisConnection -ConnectionName $ConnectionName
     $info = $conn.Info()
 
     return $info
@@ -196,10 +225,14 @@ function Get-RedisUptime
         [Parameter()]
         [ValidateSet('Seconds', 'Days')]
         [string]
-        $Granularity
+        $Granularity,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
-    $info = Get-RedisInfo
+    $info = Get-RedisInfo -ConnectionName $ConnectionName
     $key = "uptime_in_$($Granularity.ToLowerInvariant())"
     return ($info[0] | Where-Object { $_.Key -ieq $key } | Select-Object -ExpandProperty Value)
 }
@@ -233,16 +266,34 @@ function Add-RedisKey
         $Key,
 
         [Parameter()]
-        [string]
+        [object]
         $Value,
 
         [Parameter()]
         [timespan]
-        $TTL
+        $TTL,
+
+        [Parameter()]
+        [string]
+        $ConnectionName,
+
+        [Parameter()]
+        [ValidateSet('hash', 'string')]
+        [string]
+        $HashType = 'string'
     )
 
-    $db = Get-RedisDatabase
-    $value = $db.StringSet($Key, $Value, $TTL)
+    $db = Get-RedisDatabase -ConnectionName $ConnectionName
+
+    if ($HashType -ieq "hash"){
+        $value = $db.HashSet($Key, $Value, 0)
+
+        Set-RedisKeyTTL -Key $Key -TTL $TTL.TotalSeconds -ConnectionName $ConnectionName
+    }
+    else{
+        $value = $db.StringSet($Key, $Value, $TTL)
+    }
+
 
     return $value
 }
@@ -267,10 +318,14 @@ function Remove-RedisKeys
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string]
-        $Pattern
+        $Pattern,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
-    $conn = Get-RedisConnection
+    $conn = Get-RedisConnection -ConnectionName $ConnectionName
     $count = 0
 
     foreach ($k in $conn.Keys($Global:PsRedisDatabaseIndex, $Pattern))
@@ -305,10 +360,14 @@ function Get-RedisKeysCount
     param (
         [Parameter()]
         [string]
-        $Pattern = '*'
+        $Pattern = '*',
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
-    $conn = Get-RedisConnection
+    $conn = Get-RedisConnection -ConnectionName $ConnectionName
 
     if ([string]::IsNullOrWhiteSpace($Pattern)) {
         $Pattern = '*'
@@ -351,21 +410,28 @@ function Get-RedisKeyDetails
         [Parameter()]
         [ValidateSet('hash', 'set', 'string')]
         [string]
-        $Type
+        $Type,
+
+        [Parameter()]
+        [string]
+        $ConnectionName,
+
+        [switch]
+        $HashAsHashEntry
     )
 
     if ([string]::IsNullOrWhitespace($Type)){
-        $Type = Get-RedisKeyType -Key $Key
+        $Type = Get-RedisKeyType -Key $Key -ConnectionName $ConnectionName
     }
 
-    $value = Get-RedisKey -Key $Key -Type $Type
+    $value = Get-RedisKey -Key $Key -Type $Type -ConnectionName $ConnectionName -HashAsHashEntry:$HashAsHashEntry
 
     return @{
         Key = $Key
         Type = $Type
         Value = $value
-        TTL = (Get-RedisKeyTTL -Key $Key).TotalSeconds
-        Size = (Get-RedisKeyValueLengthPrivate -Data $value)
+        TTL = (Get-RedisKeyTTL -Key $Key -ConnectionName $ConnectionName).TotalSeconds
+        Size = (Get-RedisKeyValueLengthPrivate -Data $value -ConnectionName $ConnectionName)
     }
 }
 
@@ -396,22 +462,35 @@ function Get-RedisKey
 
         [Parameter()]
         [string]
-        $Type
+        $Type,
+
+        [Parameter()]
+        [string]
+        $ConnectionName,
+
+        [switch]
+        $HashAsHashEntry
     )
 
-    $db = Get-RedisDatabase
+    $db = Get-RedisDatabase -ConnectionName $ConnectionName
 
     if ([string]::IsNullOrWhitespace($Type)){
-        $Type = Get-RedisKeyType -Key $Key
+        $Type = Get-RedisKeyType -Key $Key -ConnectionName $ConnectionName
     }
 
     switch ($Type.ToLowerInvariant()) {
         'hash' {
-            $value = [string]($db.HashGetAll($Key)).Value
+            if ($HashAsHashEntry)
+            {
+                $value = $db.HashGetAll($Key)
+            }
+            else{
+                $value = [string]($db.HashGetAll($Key)).Value
+            }
         }
 
         'set' {
-            $value = @([string]($db.SetMembers($Key)) -isplit '\s+')
+            $value = @([string]($db.SetMembers($Key)) -isplit '\s+') #todo:asdfasf
         }
 
         default {
@@ -424,12 +503,12 @@ function Get-RedisKey
 
 <#
 .SYNOPSIS
-Gets the length of a redis key value. 
+Gets the length of a redis key value.
 If the key is of type set then it will return the amount of items in the set.
 Otherwise, it will return the amount of characters in the value
 
 .DESCRIPTION
-Gets the length of a redis key value. 
+Gets the length of a redis key value.
 If the key is of type set then it will return the amount of items in the set.
 Otherwise, it will return the amount of characters in the value
 
@@ -446,10 +525,14 @@ function Get-RedisKeyValueLength
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string]
-        $Key
+        $Key,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
-    return Get-RedisKeyValueLengthPrivate -Key $Key
+    return Get-RedisKeyValueLengthPrivate -Key $Key -ConnectionName $ConnectionName
 }
 
 <#
@@ -465,9 +548,13 @@ Get-RedisRandomKey
 function Get-RedisRandomKey
 {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter()]
+        [string]
+        $ConnectionName
+    )
 
-    $db = Get-RedisDatabase
+    $db = Get-RedisDatabase -ConnectionName $ConnectionName
     $value = $db.KeyRandom()
     return $value
 }
@@ -506,7 +593,11 @@ function Get-RedisRandomKeys
 
         [Parameter(Mandatory=$true)]
         [int]
-        $KeyCount = 1
+        $KeyCount = 1,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
     $keys = @()
@@ -516,7 +607,7 @@ function Get-RedisRandomKeys
     }
 
     while ($keys.Length -lt $KeyCount){
-        $key = [string](Get-RedisRandomKey)
+        $key = [string](Get-RedisRandomKey -ConnectionName $ConnectionName)
 
         if (!([string]::IsNullOrWhiteSpace($Pattern)) -and !($key -imatch $Pattern)) {
             continue
@@ -560,7 +651,11 @@ function Get-RedisRandomKeysQuick
 
         [Parameter()]
         [int]
-        $PageSize = 10
+        $PageSize = 10,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
     $keys = @()
@@ -571,7 +666,7 @@ function Get-RedisRandomKeysQuick
     }
 
     while ($keys.Length -lt $KeyCount) {
-        $keys += (Get-RedisKeys -Pattern $Pattern -KeyCount ($KeyCount - $keys.Length) -KeyOffset $KeyOffset -PageSize $PageSize -ScriptBlock {
+        $keys += (Get-RedisKeys -Pattern $Pattern -KeyCount ($KeyCount - $keys.Length) -KeyOffset $KeyOffset -PageSize $PageSize -ConnectionName $ConnectionName -ScriptBlock {
             param($key)
             $allowed = ((Get-Random -Minimum 1 -Maximum 5) -eq 2)
 
@@ -614,10 +709,14 @@ function Get-RedisKeyType
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string]
-        $Key
+        $Key,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
-    $db = Get-RedisDatabase
+    $db = Get-RedisDatabase -ConnectionName $ConnectionName
     $value = $db.KeyType($key)
     return $value.ToString()
 }
@@ -642,10 +741,14 @@ function Get-RedisKeyTTL
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string]
-        $Key
+        $Key,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
-    $db = Get-RedisDatabase
+    $db = Get-RedisDatabase -ConnectionName $ConnectionName
     $value = $db.KeyTimeToLive($Key)
     return $value
 }
@@ -678,10 +781,14 @@ function Set-RedisKeyTTL
         [Parameter(Mandatory=$true)]
         [ValidateNotNull()]
         [int]
-        $TTL
+        $TTL,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
-    $db = Get-RedisDatabase
+    $db = Get-RedisDatabase -ConnectionName $ConnectionName
     $db.KeyExpire($Key, [TimeSpan]::FromSeconds($TTL)) | Out-Null
 }
 
@@ -707,10 +814,14 @@ function Get-RedisKeys
 
         [Parameter()]
         [int]
-        $PageSize = 10
+        $PageSize = 10,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
-    $conn = Get-RedisConnection
+    $conn = Get-RedisConnection -ConnectionName $ConnectionName
     $keys = @()
 
     if ([string]::IsNullOrWhiteSpace($Pattern)) {
@@ -750,10 +861,14 @@ function Remove-RedisKey
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string]
-        $Key
+        $Key,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
-    $db = Get-RedisDatabase
+    $db = Get-RedisDatabase -ConnectionName $ConnectionName
     $db.KeyDelete($Key) | Out-Null
 }
 
@@ -769,10 +884,14 @@ function Remove-RedisSetMember
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string[]]
-        $Member
+        $Member,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
-    $db = Get-RedisDatabase
+    $db = Get-RedisDatabase -ConnectionName $ConnectionName
     $db.SetRemove($Key, $Member) | Out-Null
 }
 
@@ -788,10 +907,14 @@ function Add-RedisSetMember
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string[]]
-        $Member
+        $Member,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
-    $db = Get-RedisDatabase
+    $db = Get-RedisDatabase -ConnectionName $ConnectionName
     $db.SetAdd($Key, $Member) | Out-Null
 }
 
@@ -806,10 +929,14 @@ function Set-RedisIncrementKey
 
         [Parameter()]
         [int]
-        $Increment = 1
+        $Increment = 1,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
-    $db = Get-RedisDatabase
+    $db = Get-RedisDatabase -ConnectionName $ConnectionName
     $value = $db.StringIncrement($Key, $Increment) | Out-Null
     return $value
 }
@@ -828,7 +955,11 @@ function Test-RedisTiming
         $Seconds = 120,
 
         [switch]
-        $NoSleep
+        $NoSleep,
+
+        [Parameter()]
+        [string]
+        $ConnectionName
     )
 
     if ($Seconds -le 0) {
@@ -843,7 +974,7 @@ function Test-RedisTiming
     {
         $_start = [DateTime]::UtcNow
 
-        Set-RedisIncrementKey -Key $Key -Increment 1 | Out-Null
+        Set-RedisIncrementKey -Key $Key -Increment 1 -ConnectionName $ConnectionName | Out-Null
 
         $duration = [DateTime]::UtcNow.Subtract($_start).TotalMilliseconds
         $times += $duration
@@ -854,7 +985,7 @@ function Test-RedisTiming
     }
 
     # remove the key
-    Remove-RedisKey -Key $Key
+    Remove-RedisKey -Key $Key -ConnectionName $ConnectionName
 
     # loop through the duration, getting the average/min and max times
     $results = ($times | Measure-Object -Average -Minimum -Maximum)
